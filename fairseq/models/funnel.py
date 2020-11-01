@@ -1,5 +1,8 @@
 # Author: Viswesh Krishna
 
+from typing import Dict, List, Optional
+
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from fairseq import utils
