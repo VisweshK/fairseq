@@ -110,10 +110,11 @@ class FunnelEncoderLayer(nn.Module):
 
         ndims = x.ndim
         # TODO: Add pool query args to parser
-        if self.separate_cls:
-            x = torch.cat([x[:, :1], x[:, :-1]], dim=1)
-        else:
-            x = torch.cat([x[:, :1], x], dim=1)
+        # if self.separate_cls:
+        #     if False:
+        #         x = torch.cat([x[:, :1], x[:, :-1]], dim=1)
+        #     else:
+        #         x = torch.cat([x[:, :1], x], dim=1)
 
         assert ndims == 2 or ndims == 3 or ndims == 4
 
