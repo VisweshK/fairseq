@@ -112,7 +112,7 @@ class FunnelEncoder(TransformerEncoder):
 
         assert args.encoder_embed_dim % args.stride == 0
         self.embed_dim = args.encoder_embed_dim
-        self.stride = (args.stride, 1)
+        self.stride = args.stride
         self.num_blocks = args.num_blocks
         self.encoder_layers = args.encoder_layers
         # Recreate Layers with Funnel Encoders
@@ -194,7 +194,7 @@ class FunnelEncoder(TransformerEncoder):
         if self.upsample:
             x = residual + \
                 nn.Upsample(
-                    scale_factor=self.stride[0] ** (self.num_blocks - 1), mode="nearest")
+                    scale_factor=self.stride ** (self.num_blocks - 1), mode="nearest")
 
         return EncoderOut(
             encoder_out=x,  # T x B x C
