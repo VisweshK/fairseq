@@ -108,7 +108,7 @@ class FunnelEncoderLayer(nn.Module):
         mode = self.pooling_type
         stride = (self.stride, 1)
 
-        ndims = x.dims()
+        ndims = x.ndim
         # TODO: Add pool query args to parser
         if self.separate_cls:
             tensor = torch.cat([tensor[:, :1], tensor[:, :-1]], dim=1)
