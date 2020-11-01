@@ -25,7 +25,7 @@ from fairseq.modules import (
 class FunnelTransformer(TransformerModel):
 
     def __init__(self, args, encoder, decoder):
-        super().init(args, encoder, decoder)
+        super().__init__(args, encoder, decoder)
 
     @staticmethod
     def add_args(parser):
