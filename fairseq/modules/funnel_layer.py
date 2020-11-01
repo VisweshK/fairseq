@@ -22,8 +22,10 @@ class FunnelEncoderLayer(nn.Module):
         self.quant_noise_block_size = getattr(
             args, 'quant_noise_pq_block_size', 8) or 8
         # Funnel Args
+        self.stride = stride
         self.should_pool_query = should_pool_query
-        self.query_dim = self.embed_dim // (stride if should_pool_query else 1)
+        self.query_dim = self.embed_dim // (
+            self.stride if should_pool_query else 1)
         self.block_id = block_id
         self.block_num = block_num
         self.pooling_type = getattr(args, 'pooling_type', 'mean')
