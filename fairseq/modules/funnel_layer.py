@@ -15,9 +15,9 @@ from torch import Tensor
 class FunnelEncoderLayer(nn.Module):
     """Implement transformer encoder layer with query pooling"""
 
-    def __init__(self, args, block_num, block_id, stride, should_pool_query):
+    def __init__(self, args, embed_dim, block_num, block_id, stride, should_pool_query):
         super().__init__()
-        self.embed_dim = args.encoder_embed_dim
+        self.embed_dim = embed_dim
         self.quant_noise = getattr(args, 'quant_noise_pq', 0)
         self.quant_noise_block_size = getattr(
             args, 'quant_noise_pq_block_size', 8) or 8

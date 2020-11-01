@@ -97,8 +97,8 @@ class FunnelTransformer(TransformerModel):
 
 class FunnelEncoder(TransformerEncoder):
     """
-    Funnel Transformer encoder consisting *args.num_blocks* where each block 
-    consists of *args.encoder_layers* layers. Each layer is a 
+    Funnel Transformer encoder consisting *args.num_blocks* where each block
+    consists of *args.encoder_layers* layers. Each layer is a
     :class:`FunnelEncoderLayer`.
 
     Args:
@@ -110,6 +110,8 @@ class FunnelEncoder(TransformerEncoder):
     def __init__(self, args, dictionary, embed_tokens):
         super().__init__(args, dictionary, embed_tokens)
 
+        assert args.encoder_embed_dim % args.stride == 0
+        self.embed_dim = args.encoder_embed_dim
         self.stride = (args.stride, 1)
         self.num_blocks = args.num_blocks
         self.encoder_layers = args.encoder_layers
@@ -119,15 +121,22 @@ class FunnelEncoder(TransformerEncoder):
         else:
             self.layers = nn.ModuleList([])
 
-        self.layers.extend(
-            [self.build_funnel_encoder_layer(args, block_num, block_id, self.stride, (block_id == 0 and block_num != 0))
-             for block_id in range(self.encoder_layers)
-             for block_num in range(self.num_blocks)]
-        )
+        for block_num in range(self.num_blocks):
+            for block_id in range(self.encoder_layers):
+                self.layers.append(
+                    self.build_funnel_encoder_layer(
+                        args,
+                        self.embed_dim // (self.stride ** block_num),
+                        block_num,
+                        block_id,
+                        self.stride,
+                        (block_id == 0 and block_num != 0)
+                    )
+                )
         self.num_layers = len(self.layers)
 
-    def build_funnel_encoder_layer(self, args, block_num, block_id, stride, should_pool_query):
-        return FunnelEncoderLayer(args, block_num, block_id, stride, should_pool_query)
+    def build_funnel_encoder_layer(self, args, embed_dim, block_num, block_id, stride, should_pool_query):
+        return FunnelEncoderLayer(args, embed_dim, block_num, block_id, stride, should_pool_query)
 
     def forward(
         self,
@@ -197,7 +206,7 @@ class FunnelEncoder(TransformerEncoder):
         )
 
 
-@register_model_architecture("funnel_transformer", "funnel_transformer")
+@ register_model_architecture("funnel_transformer", "funnel_transformer")
 def base_architecture(args):
     args.encoder_embed_path = getattr(args, "encoder_embed_path", None)
     args.encoder_embed_dim = getattr(args, "encoder_embed_dim", 512)
@@ -257,7 +266,7 @@ def base_architecture(args):
     args.quant_noise_scalar = getattr(args, "quant_noise_scalar", 0)
 
 
-@register_model_architecture("funnel_transformer", "funnel_transformer_iwslt_de_en")
+@ register_model_architecture("funnel_transformer", "funnel_transformer_iwslt_de_en")
 def funnel_transformer_iwslt_de_en(args):
     args.encoder_embed_dim = getattr(args, "encoder_embed_dim", 512)
     args.encoder_ffn_embed_dim = getattr(args, "encoder_ffn_embed_dim", 1024)
