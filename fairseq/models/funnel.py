@@ -35,7 +35,7 @@ class FunnelTransformer(TransformerModel):
                             help='number of blocks in encoder.')
         parser.add_argument('--stride', type=int, metavar='N', default=2,
                             help='pooling stride during downsample.')
-        parser.add_argument('--should-upsample', type=bool, action='store_true',
+        parser.add_argument('--should-upsample', action='store_true',
                             help='upsample with skip connection')
 
     @classmethod
