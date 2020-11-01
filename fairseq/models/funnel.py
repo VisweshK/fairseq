@@ -195,7 +195,7 @@ class FunnelEncoder(TransformerEncoder):
         if self.upsample:
             x = residual + \
                 nn.Upsample(
-                    scale_factor=self.stride ** (self.num_blocks - 1), mode="nearest")
+                    scale_factor=self.stride ** (self.num_blocks - 1), mode="nearest")(x)
 
         return EncoderOut(
             encoder_out=x,  # T x B x C
