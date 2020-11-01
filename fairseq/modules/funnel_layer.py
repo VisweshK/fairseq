@@ -84,9 +84,9 @@ class FunnelEncoderLayer(nn.Module):
     def build_self_attention(self, embed_dim, query_dim, args):
         return MultiheadAttention(
             query_dim,
+            args.encoder_attention_heads,
             kdim=embed_dim,
             vdim=embed_dim,
-            args.encoder_attention_heads,
             dropout=args.attention_dropout,
             q_noise=self.quant_noise,
             qn_block_size=self.quant_noise_block_size,
