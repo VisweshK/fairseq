@@ -48,14 +48,14 @@ class FunnelEncoderLayer(nn.Module):
         )
         self.normalize_before = args.encoder_normalize_before
         self.fc1 = self.build_fc1(
-            self.embed_dim,
+            self.query_dim,
             args.encoder_ffn_embed_dim,
             self.quant_noise,
             self.quant_noise_block_size,
         )
         self.fc2 = self.build_fc2(
             args.encoder_ffn_embed_dim,
-            self.embed_dim,
+            self.query_dim,
             self.quant_noise,
             self.quant_noise_block_size,
         )
