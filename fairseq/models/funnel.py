@@ -183,7 +183,7 @@ class FunnelEncoder(TransformerEncoder):
         # encoder layers
         for layer in self.layers:
             x = layer(x, encoder_padding_mask)
-            if layer.block_id == self.num_layers - 1 and layer.block_num == 0:
+            if layer.block_id == self.encoder_layers - 1 and layer.block_num == 0:
                 residual = x
             if return_all_hiddens:
                 assert encoder_states is not None

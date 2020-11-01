@@ -145,9 +145,7 @@ class FunnelEncoderLayer(nn.Module):
 
         no_pool = x
         if self.should_pool_query:
-            print('Before', x.shape)
             x = self.pool_query(x)
-            print('After', x.shape)
 
         residual = x
         if self.normalize_before:
