@@ -111,34 +111,34 @@ class FunnelEncoderLayer(nn.Module):
         ndims = x.ndim
         # TODO: Add pool query args to parser
         if self.separate_cls:
-            tensor = torch.cat([tensor[:, :1], tensor[:, :-1]], dim=1)
+            x = torch.cat([x[:, :1], x[:, :-1]], dim=1)
         else:
-            tensor = torch.cat([tensor[:, :1], tensor], dim=1)
+            x = torch.cat([x[:, :1], x], dim=1)
 
         assert ndims == 2 or ndims == 3 or ndims == 4
 
         if ndims == 2:
-            tensor = tensor[:, None, :, None]
+            x = x[:, None, :, None]
         elif ndims == 3:
-            tensor = tensor[:, None, :, :]
+            x = x[:, None, :, :]
 
         if mode == "mean":
-            tensor = F.avg_pool2d(
-                tensor, stride, stride=stride, ceil_mode=True)
+            x = F.avg_pool2d(
+                x, stride, stride=stride, ceil_mode=True)
         elif mode == "max":
-            tensor = F.max_pool2d(
-                tensor, stride, stride=stride, ceil_mode=True)
+            x = F.max_pool2d(
+                x, stride, stride=stride, ceil_mode=True)
         elif mode == "min":
-            tensor = -F.max_pool2d(
-                -tensor, stride, stride=stride, ceil_mode=True)
+            x = -F.max_pool2d(
+                -x, stride, stride=stride, ceil_mode=True)
         else:
             raise NotImplementedError
         if ndims == 2:
-            tensor = tensor.squeeze(-1).squeeze(1)
+            x = x.squeeze(-1).squeeze(1)
         elif ndims == 3:
-            tensor = tensor.squeeze(1)
+            x = x.squeeze(1)
 
-        return tensor
+        return x
 
     def forward(self, x, encoder_padding_mask, attn_mask: Optional[Tensor] = None):
         """Either adapted self-attention, or normal self-attention"""
