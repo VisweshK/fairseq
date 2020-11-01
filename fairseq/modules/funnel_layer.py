@@ -23,12 +23,12 @@ class FunnelEncoderLayer(nn.Module):
             args, 'quant_noise_pq_block_size', 8) or 8
         # Funnel Args
         self.should_pool_query = should_pool_query
-        self.query_dim = self.embed_dim // stride
+        self.query_dim = self.embed_dim // (stride if should_pool_query else 1)
         self.block_id = block_id
         self.block_num = block_num
         self.pooling_type = getattr(args, 'pooling_type', 'mean')
         # self.pooling_size = getattr(args, 'pooling_size', True)
-        self.separate_cls = getattr(args, 'separate_cls', True)
+        self.separate_cls = getattr(args, 'separate_cls', False)
         self.self_attn = self.build_self_attention(
             self.embed_dim, self.query_dim, args)
         self.self_attn_layer_norm = LayerNorm(self.embed_dim)
@@ -107,9 +107,9 @@ class FunnelEncoderLayer(nn.Module):
         stride = (self.stride, 1)
 
         ndims = x.dims()
+        # TODO: Add pool query args to parser
         if self.separate_cls:
-            if self.args.truncate_seq:
-                tensor = torch.cat([tensor[:, :1], tensor[:, :-1]], dim=1)
+            tensor = torch.cat([tensor[:, :1], tensor[:, :-1]], dim=1)
         else:
             tensor = torch.cat([tensor[:, :1], tensor], dim=1)
 
