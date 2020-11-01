@@ -30,7 +30,7 @@ class FunnelTransformer(TransformerModel):
     @staticmethod
     def add_args(parser):
         """Add model-specific arguments to parser."""
-        super().add_args(parser)
+        super(TransformerModel, self).add_args(parser)
         parser.add_argument('--num-blocks', type=int, metavar='N',
                             help='number of blocks in encoder.')
         parser.add_argument('--stride', type=int, metavar='N', default=2,
@@ -43,7 +43,7 @@ class FunnelTransformer(TransformerModel):
         """
         Build new model instance.
         """
-        super().build_model(cls, args, task)
+        super(TransformerModel, self).build_model(cls, args, task)
         encoder = cls.build_encoder(args, src_dict, encoder_embed_tokens)
         decoder = cls.build_decoder(args, tgt_dict, encoder_embed_tokens)
         return cls(args, encoder, decoder)
