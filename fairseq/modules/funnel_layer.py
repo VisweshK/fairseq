@@ -22,17 +22,17 @@ class FunnelEncoderLayer(nn.Module):
         # Funnel Args
         self.stride = stride
         self.should_pool_query = should_pool_query
-        self.embed_dim = embed_dim * (
+        self.embed_dim = embed_dim
+        self.kv_dim = embed_dim * (
             self.stride if should_pool_query else 1)
-        self.query_dim = embed_dim
         self.block_id = block_id
         self.block_num = block_num
         self.pooling_type = getattr(args, 'pooling_type', 'mean')
         # self.pooling_size = getattr(args, 'pooling_size', True)
         self.separate_cls = getattr(args, 'separate_cls', False)
         self.self_attn = self.build_self_attention(
-            self.embed_dim, self.query_dim, args)
-        self.self_attn_layer_norm = LayerNorm(self.query_dim)
+            self.kv_dim, self.embed_dim, args)
+        self.self_attn_layer_norm = LayerNorm(self.embed_dim)
         self.dropout_module = FairseqDropout(
             args.dropout, module_name=self.__class__.__name__
         )
@@ -48,14 +48,14 @@ class FunnelEncoderLayer(nn.Module):
         )
         self.normalize_before = args.encoder_normalize_before
         self.fc1 = self.build_fc1(
-            self.query_dim,
+            self.embed_dim,
             args.encoder_ffn_embed_dim,
             self.quant_noise,
             self.quant_noise_block_size,
         )
         self.fc2 = self.build_fc2(
             args.encoder_ffn_embed_dim,
-            self.query_dim,
+            self.embed_dim,
             self.quant_noise,
             self.quant_noise_block_size,
         )
@@ -89,12 +89,12 @@ class FunnelEncoderLayer(nn.Module):
                     state_dict["{}.{}.{}".format(name, new, m)] = state_dict[k]
                     del state_dict[k]
 
-    def build_self_attention(self, embed_dim, query_dim, args):
+    def build_self_attention(self, embed_dim, kv_dim, args):
         return MultiheadAttention(
-            query_dim,
+            embed_dim,
             args.encoder_attention_heads,
-            kdim=embed_dim,
-            vdim=embed_dim,
+            kdim=kv_dim,
+            vdim=kv_dim,
             dropout=args.attention_dropout,
             q_noise=self.quant_noise,
             qn_block_size=self.quant_noise_block_size,
