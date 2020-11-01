@@ -31,7 +31,7 @@ class FunnelEncoderLayer(nn.Module):
         # self.pooling_size = getattr(args, 'pooling_size', True)
         self.separate_cls = getattr(args, 'separate_cls', False)
         self.self_attn = self.build_self_attention(
-            self.kv_dim, self.embed_dim, args)
+            self.embed_dim, self.kv_dim, args)
         self.self_attn_layer_norm = LayerNorm(self.embed_dim)
         self.dropout_module = FairseqDropout(
             args.dropout, module_name=self.__class__.__name__
