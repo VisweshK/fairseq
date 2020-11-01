@@ -5,6 +5,10 @@ import torch.nn.functional as F
 from fairseq import utils
 from fairseq.models.fairseq_encoder import EncoderOut
 from fairseq.models import (
+    register_model,
+    register_model_architecture,
+)
+from .transformer import (
     TransformerEncoder,
     TransformerDecoder,
     TransformerModel,
