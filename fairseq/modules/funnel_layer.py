@@ -4,7 +4,6 @@ from typing import Dict, List, Optional
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from fairseq import utils
 from fairseq.modules import LayerNorm, MultiheadAttention
 from fairseq.modules.fairseq_dropout import FairseqDropout
@@ -106,7 +105,7 @@ class FunnelEncoderLayer(nn.Module):
         if x is None:
             return None
         mode = self.pooling_type
-        stride = (self.stride, 1)
+        # stride = (self.stride, 1)
 
         ndims = x.ndim
         # TODO: Add pool query args to parser
@@ -118,26 +117,23 @@ class FunnelEncoderLayer(nn.Module):
 
         assert ndims == 2 or ndims == 3 or ndims == 4
 
-        if ndims == 2:
-            x = x[:, None, :, None]
-        elif ndims == 3:
-            x = x[:, None, :, :]
+        # if ndims == 2:
+        #     x = x[:, None, :, None]
+        # elif ndims == 3:
+        #     x = x[:, None, :, :]
 
         if mode == "mean":
-            x = F.avg_pool2d(
-                x, stride, stride=stride, ceil_mode=True)
+            x = nn.AvgPool1d(stride, stride=stride, ceil_mode=True)(x)
         elif mode == "max":
-            x = F.max_pool2d(
-                x, stride, stride=stride, ceil_mode=True)
+            x = nn.MaxPool1d(stride, stride=stride, ceil_mode=True)(x)
         elif mode == "min":
-            x = -F.max_pool2d(
-                -x, stride, stride=stride, ceil_mode=True)
+            x = -nn.MaxPool1d(stride, stride=stride, ceil_mode=True)(-x)
         else:
             raise NotImplementedError
-        if ndims == 2:
-            x = x.squeeze(-1).squeeze(1)
-        elif ndims == 3:
-            x = x.squeeze(1)
+        # if ndims == 2:
+        #     x = x.squeeze(-1).squeeze(1)
+        # elif ndims == 3:
+        #     x = x.squeeze(1)
 
         return x
 
