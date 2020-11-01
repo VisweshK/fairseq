@@ -120,7 +120,7 @@ class FunnelEncoder(TransformerEncoder):
             self.layers = nn.ModuleList([])
 
         self.layers.extend(
-            [build_funnel_encoder_layer(args, block_num, block_id, self.stride, (block_id == 0 and block_num != 0))
+            [self.build_funnel_encoder_layer(args, block_num, block_id, self.stride, (block_id == 0 and block_num != 0))
              for block_id in range(self.encoder_layers)
              for block_num in range(self.num_blocks)]
         )
