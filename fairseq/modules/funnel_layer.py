@@ -17,15 +17,15 @@ class FunnelEncoderLayer(nn.Module):
 
     def __init__(self, args, embed_dim, block_num, block_id, stride, should_pool_query):
         super().__init__()
-        self.embed_dim = embed_dim
         self.quant_noise = getattr(args, 'quant_noise_pq', 0)
         self.quant_noise_block_size = getattr(
             args, 'quant_noise_pq_block_size', 8) or 8
         # Funnel Args
         self.stride = stride
         self.should_pool_query = should_pool_query
-        self.query_dim = self.embed_dim // (
+        self.embed_dim = embed_dim * (
             self.stride if should_pool_query else 1)
+        self.query_dim = embed_dim
         self.block_id = block_id
         self.block_num = block_num
         self.pooling_type = getattr(args, 'pooling_type', 'mean')
