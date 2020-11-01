@@ -105,7 +105,7 @@ class FunnelEncoderLayer(nn.Module):
         if x is None:
             return None
         mode = self.pooling_type
-        # stride = (self.stride, 1)
+        stride = self.stride
 
         ndims = x.ndim
         # TODO: Add pool query args to parser
