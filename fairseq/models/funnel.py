@@ -71,14 +71,14 @@ class FunnelEncoder(TransformerEncoder):
             self.layers = nn.ModuleList([])
 
         self.layers.extend(
-            [build_funnel_encoder_layer(args, block_num, block_id, stride)
+            [build_funnel_encoder_layer(args, block_num, block_id, self.stride, (block_id == 0 and block_num != 0))
              for block_id in range(self.encoder_layers)
              for block_num in range(self.num_blocks)]
         )
         self.num_layers = len(self.layers)
 
-    def build_funnel_encoder_layer(self, args, block_num, block_id, stride):
-        return FunnelEncoderLayer(args, block_num, block_id, stride)
+    def build_funnel_encoder_layer(self, args, block_num, block_id, stride, should_pool_query):
+        return FunnelEncoderLayer(args, block_num, block_id, stride, should_pool_query)
 
     def forward(
         self,

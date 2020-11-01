@@ -8,7 +8,7 @@ from fairseq import utils
 class FunnelEncoderLayer(nn.Module):
     """Implement transformer encoder layer with query pooling"""
 
-    def __init__(self, args, block_num, block_id stride=(2, 1), should_pool_query=True):
+    def __init__(self, args, block_num, block_id, stride, should_pool_query):
         super().__init__()
         self.embed_dim = args.encoder_embed_dim
         self.quant_noise = getattr(args, 'quant_noise_pq', 0)
