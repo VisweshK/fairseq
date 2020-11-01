@@ -30,7 +30,7 @@ class FunnelTransformer(TransformerModel):
     @staticmethod
     def add_args(parser):
         """Add model-specific arguments to parser."""
-        super(TransformerModel, self).add_args(parser)
+        TransformerModel.add_args(parser)
         parser.add_argument('--num-blocks', type=int, metavar='N',
                             help='number of blocks in encoder.')
         parser.add_argument('--stride', type=int, metavar='N', default=2,
