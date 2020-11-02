@@ -89,13 +89,15 @@ class SequenceGenerator(nn.Module):
         assert temperature > 0, "--temperature must be greater than 0"
 
         self.search = (
-            search.BeamSearch(tgt_dict) if search_strategy is None else search_strategy
+            search.BeamSearch(
+                tgt_dict) if search_strategy is None else search_strategy
         )
         # We only need to set src_lengths in LengthConstrainedBeamSearch.
         # As a module attribute, setting it would break in multithread
         # settings when the model is shared.
         self.should_set_src_lengths = (
-            hasattr(self.search, "needs_src_lengths") and self.search.needs_src_lengths
+            hasattr(self.search,
+                    "needs_src_lengths") and self.search.needs_src_lengths
         )
 
         self.model.eval()
@@ -201,7 +203,8 @@ class SequenceGenerator(nn.Module):
         elif "source" in net_input:
             src_tokens = net_input["source"]
             src_lengths = (
-                net_input["padding_mask"].size(-1) - net_input["padding_mask"].sum(-1)
+                net_input["padding_mask"].size(-1) -
+                net_input["padding_mask"].sum(-1)
                 if net_input["padding_mask"] is not None
                 else torch.tensor(src_tokens.size(-1)).to(src_tokens)
             )
@@ -267,7 +270,8 @@ class SequenceGenerator(nn.Module):
         # list of completed sentences
         finalized = torch.jit.annotate(
             List[List[Dict[str, Tensor]]],
-            [torch.jit.annotate(List[Dict[str, Tensor]], []) for i in range(bsz)],
+            [torch.jit.annotate(List[Dict[str, Tensor]], [])
+             for i in range(bsz)],
         )  # contains lists of dictionaries of infomation about the hypothesis being finalized at each step
 
         finished = [
@@ -279,7 +283,8 @@ class SequenceGenerator(nn.Module):
         cand_size = 2 * beam_size  # 2 x beam size in case half are EOS
 
         # offset arrays for converting between different indexing schemes
-        bbsz_offsets = (torch.arange(0, bsz) * beam_size).unsqueeze(1).type_as(tokens)
+        bbsz_offsets = (torch.arange(0, bsz) *
+                        beam_size).unsqueeze(1).type_as(tokens)
         cand_offsets = torch.arange(0, cand_size).type_as(tokens)
 
         reorder_state: Optional[Tensor] = None
@@ -304,7 +309,8 @@ class SequenceGenerator(nn.Module):
                         corr.unsqueeze(-1) * beam_size
                     )
                     original_batch_idxs = original_batch_idxs[batch_idxs]
-                self.model.reorder_incremental_state(incremental_states, reorder_state)
+                self.model.reorder_incremental_state(
+                    incremental_states, reorder_state)
                 encoder_outs = self.model.reorder_encoder_out(
                     encoder_outs, reorder_state
                 )
@@ -315,6 +321,7 @@ class SequenceGenerator(nn.Module):
                 incremental_states,
                 self.temperature,
             )
+            print('Lprobs begin', lprobs.shape)
 
             if self.lm_model is not None:
                 lm_out = self.lm_model(tokens[:, : step + 1])
@@ -332,7 +339,7 @@ class SequenceGenerator(nn.Module):
             # handle max length constraint
             if step >= max_len:
                 lprobs[:, : self.eos] = -math.inf
-                lprobs[:, self.eos + 1 :] = -math.inf
+                lprobs[:, self.eos + 1:] = -math.inf
 
             # handle prefix tokens (possibly with different lengths)
             if (
@@ -367,8 +374,10 @@ class SequenceGenerator(nn.Module):
                 self.search.set_src_lengths(src_lengths)
 
             if self.no_repeat_ngram_size > 0:
-                lprobs = self._no_repeat_ngram(tokens, lprobs, bsz, beam_size, step)
+                lprobs = self._no_repeat_ngram(
+                    tokens, lprobs, bsz, beam_size, step)
 
+            print('Lprobs before', lprobs.shape, bsz, self.vocab_size)
             # Shape: (batch, cand_size)
             cand_scores, cand_indices, cand_beams = self.search.step(
                 step,
@@ -386,7 +395,8 @@ class SequenceGenerator(nn.Module):
             # finalize hypotheses that end in eos
             # Shape of eos_mask: (batch size, beam size)
             eos_mask = cand_indices.eq(self.eos) & cand_scores.ne(-math.inf)
-            eos_mask[:, :beam_size][cands_to_ignore] = torch.tensor(0).to(eos_mask)
+            eos_mask[:, :beam_size][cands_to_ignore] = torch.tensor(
+                0).to(eos_mask)
 
             # only consider eos when it's among the top beam_size indices
             # Now we know what beam item(s) to finish
@@ -453,8 +463,10 @@ class SequenceGenerator(nn.Module):
                 src_lengths = src_lengths[batch_idxs]
                 cands_to_ignore = cands_to_ignore[batch_idxs]
 
-                scores = scores.view(bsz, -1)[batch_idxs].view(new_bsz * beam_size, -1)
-                tokens = tokens.view(bsz, -1)[batch_idxs].view(new_bsz * beam_size, -1)
+                scores = scores.view(
+                    bsz, -1)[batch_idxs].view(new_bsz * beam_size, -1)
+                tokens = tokens.view(
+                    bsz, -1)[batch_idxs].view(new_bsz * beam_size, -1)
                 if attn is not None:
                     attn = attn.view(bsz, -1)[batch_idxs].view(
                         new_bsz * beam_size, attn.size(1), -1
@@ -469,7 +481,8 @@ class SequenceGenerator(nn.Module):
 
             # Rewrite the operator since the element wise or is not supported in torchscript.
 
-            eos_mask[:, :beam_size] = ~((~cands_to_ignore) & (~eos_mask[:, :beam_size]))
+            eos_mask[:, :beam_size] = ~(
+                (~cands_to_ignore) & (~eos_mask[:, :beam_size]))
             active_mask = torch.add(
                 eos_mask.type_as(cand_offsets) * cand_size,
                 cand_offsets[: eos_mask.size(1)],
@@ -493,8 +506,10 @@ class SequenceGenerator(nn.Module):
 
             # {active_bbsz_idx} denotes which beam number is continued for each new hypothesis (a beam
             # can be selected more than once).
-            active_bbsz_idx = torch.gather(cand_bbsz_idx, dim=1, index=active_hypos)
-            active_scores = torch.gather(cand_scores, dim=1, index=active_hypos)
+            active_bbsz_idx = torch.gather(
+                cand_bbsz_idx, dim=1, index=active_hypos)
+            active_scores = torch.gather(
+                cand_scores, dim=1, index=active_hypos)
 
             active_bbsz_idx = active_bbsz_idx.view(-1)
             active_scores = active_scores.view(-1)
@@ -535,7 +550,8 @@ class SequenceGenerator(nn.Module):
                 [float(elem["score"].item()) for elem in finalized[sent]]
             )
             _, sorted_scores_indices = torch.sort(scores, descending=True)
-            finalized[sent] = [finalized[sent][ssi] for ssi in sorted_scores_indices]
+            finalized[sent] = [finalized[sent][ssi]
+                               for ssi in sorted_scores_indices]
             finalized[sent] = torch.jit.annotate(
                 List[Dict[str, Tensor]], finalized[sent]
             )
@@ -545,7 +561,8 @@ class SequenceGenerator(nn.Module):
         self, step: int, lprobs, scores, tokens, prefix_tokens, beam_size: int
     ):
         """Handle prefix tokens"""
-        prefix_toks = prefix_tokens[:, step].unsqueeze(-1).repeat(1, beam_size).view(-1)
+        prefix_toks = prefix_tokens[:,
+                                    step].unsqueeze(-1).repeat(1, beam_size).view(-1)
         prefix_lprobs = lprobs.gather(-1, prefix_toks.unsqueeze(-1))
         prefix_mask = prefix_toks.ne(self.pad)
         lprobs[prefix_mask] = torch.tensor(-math.inf).to(lprobs)
@@ -558,16 +575,19 @@ class SequenceGenerator(nn.Module):
         if eos_mask.any():
             # validate that the first beam matches the prefix
             first_beam = tokens[eos_mask].view(-1, beam_size, tokens.size(-1))[
-                :, 0, 1 : step + 1
+                :, 0, 1: step + 1
             ]
             eos_mask_batch_dim = eos_mask.view(-1, beam_size)[:, 0]
             target_prefix = prefix_tokens[eos_mask_batch_dim][:, :step]
             assert (first_beam == target_prefix).all()
 
             # copy tokens, scores and lprobs from the first beam to all beams
-            tokens = self.replicate_first_beam(tokens, eos_mask_batch_dim, beam_size)
-            scores = self.replicate_first_beam(scores, eos_mask_batch_dim, beam_size)
-            lprobs = self.replicate_first_beam(lprobs, eos_mask_batch_dim, beam_size)
+            tokens = self.replicate_first_beam(
+                tokens, eos_mask_batch_dim, beam_size)
+            scores = self.replicate_first_beam(
+                scores, eos_mask_batch_dim, beam_size)
+            lprobs = self.replicate_first_beam(
+                lprobs, eos_mask_batch_dim, beam_size)
         return lprobs, tokens, scores
 
     def replicate_first_beam(self, tensor, mask, beam_size: int):
@@ -603,12 +623,12 @@ class SequenceGenerator(nn.Module):
         # tokens is (batch * beam, max_len). So the index_select
         # gets the newly EOS rows, then selects cols 1..{step + 2}
         tokens_clone = tokens.index_select(0, bbsz_idx)[
-            :, 1 : step + 2
+            :, 1: step + 2
         ]  # skip the first index, which is EOS
 
         tokens_clone[:, step] = self.eos
         attn_clone = (
-            attn.index_select(0, bbsz_idx)[:, :, 1 : step + 2]
+            attn.index_select(0, bbsz_idx)[:, :, 1: step + 2]
             if attn is not None
             else None
         )
@@ -722,7 +742,7 @@ class SequenceGenerator(nn.Module):
         bbsz_idx: int,
     ):
         tokens_list: List[int] = tokens[
-            bbsz_idx, step + 2 - no_repeat_ngram_size : step + 1
+            bbsz_idx, step + 2 - no_repeat_ngram_size: step + 1
         ].tolist()
         # before decoding the next token, prevent decoding of ngrams that have already appeared
         ngram_index = ",".join([str(x) for x in tokens_list])
@@ -782,7 +802,8 @@ class EnsembleModel(nn.Module):
 
         self.has_incremental: bool = False
         if all(
-            hasattr(m, "decoder") and isinstance(m.decoder, FairseqIncrementalDecoder)
+            hasattr(m, "decoder") and isinstance(
+                m.decoder, FairseqIncrementalDecoder)
             for m in models
         ):
             self.has_incremental = True
@@ -827,7 +848,8 @@ class EnsembleModel(nn.Module):
                     incremental_state=incremental_states[i],
                 )
             else:
-                decoder_out = model.decoder.forward(tokens, encoder_out=encoder_out)
+                decoder_out = model.decoder.forward(
+                    tokens, encoder_out=encoder_out)
 
             attn: Optional[Tensor] = None
             decoder_len = len(decoder_out)
@@ -935,10 +957,12 @@ class SequenceGeneratorWithAlignment(SequenceGenerator):
             tgt_tokens,
         ) = self._prepare_batch_for_alignment(sample, finalized)
         if any(getattr(m, "full_context_alignment", False) for m in self.model.models):
-            attn = self.model.forward_align(src_tokens, src_lengths, prev_output_tokens)
+            attn = self.model.forward_align(
+                src_tokens, src_lengths, prev_output_tokens)
         else:
             attn = [
-                finalized[i // beam_size][i % beam_size]["attention"].transpose(1, 0)
+                finalized[i // beam_size][i %
+                                          beam_size]["attention"].transpose(1, 0)
                 for i in range(bsz * beam_size)
             ]
 
