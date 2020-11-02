@@ -321,7 +321,6 @@ class SequenceGenerator(nn.Module):
                 incremental_states,
                 self.temperature,
             )
-            print('Lprobs begin', lprobs.shape)
 
             if self.lm_model is not None:
                 lm_out = self.lm_model(tokens[:, : step + 1])
@@ -377,7 +376,6 @@ class SequenceGenerator(nn.Module):
                 lprobs = self._no_repeat_ngram(
                     tokens, lprobs, bsz, beam_size, step)
 
-            print('Lprobs before', lprobs.shape, bsz, self.vocab_size)
             # Shape: (batch, cand_size)
             cand_scores, cand_indices, cand_beams = self.search.step(
                 step,

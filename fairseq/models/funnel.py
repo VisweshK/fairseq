@@ -87,7 +87,7 @@ class FunnelTransformer(TransformerModel):
             )
         encoder = cls.build_encoder(args, src_dict, encoder_embed_tokens)
         decoder = super(cls, cls).build_decoder(
-            args, tgt_dict, encoder_embed_tokens)
+            args, tgt_dict, decoder_embed_tokens)
         return cls(args, encoder, decoder)
 
     @classmethod
@@ -272,11 +272,11 @@ def funnel_transformer_iwslt_de_en(args):
     args.encoder_embed_dim = getattr(args, "encoder_embed_dim", 512)
     args.encoder_ffn_embed_dim = getattr(args, "encoder_ffn_embed_dim", 1024)
     args.encoder_attention_heads = getattr(args, "encoder_attention_heads", 4)
-    args.encoder_layers = getattr(args, "encoder_layers", 1)
-    args.num_blocks = getattr(args, "num_blocks", 1)
+    args.encoder_layers = getattr(args, "encoder_layers", 4)
+    args.num_blocks = getattr(args, "num_blocks", 6)
     args.upsample = getattr(args, "upsample", True)
     args.decoder_embed_dim = getattr(args, "decoder_embed_dim", 512)
     args.decoder_ffn_embed_dim = getattr(args, "decoder_ffn_embed_dim", 1024)
     args.decoder_attention_heads = getattr(args, "decoder_attention_heads", 4)
-    args.decoder_layers = getattr(args, "decoder_layers", 1)
+    args.decoder_layers = getattr(args, "decoder_layers", 6)
     base_architecture(args)
