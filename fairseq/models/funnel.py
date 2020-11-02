@@ -269,7 +269,6 @@ def base_architecture(args):
 
 @ register_model_architecture("funnel_transformer", "funnel_transformer_iwslt_de_en")
 def funnel_transformer_iwslt_de_en(args):
-    base_architecture(args)
     args.encoder_embed_dim = getattr(args, "encoder_embed_dim", 512)
     args.encoder_ffn_embed_dim = getattr(args, "encoder_ffn_embed_dim", 1024)
     args.encoder_attention_heads = getattr(args, "encoder_attention_heads", 4)
@@ -280,3 +279,4 @@ def funnel_transformer_iwslt_de_en(args):
     args.decoder_ffn_embed_dim = getattr(args, "decoder_ffn_embed_dim", 1024)
     args.decoder_attention_heads = getattr(args, "decoder_attention_heads", 4)
     args.decoder_layers = getattr(args, "decoder_layers", 1)
+    base_architecture(args)
