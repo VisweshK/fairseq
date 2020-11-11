@@ -21,13 +21,21 @@ class FunnelEncoderLayer(nn.Module):
             args, 'quant_noise_pq_block_size', 8) or 8
         # Funnel Args
         self.stride = stride
+        self.pooling_type = getattr(args, 'pooling_type', 'mean')
+        mode = self.pooling_type
+        if mode == "mean":
+            self.pool_query = nn.AvgPool1d(stride, stride=stride, ceil_mode=True)
+        elif mode == "max":
+            self.pool_query = nn.MaxPool1d(stride, stride=stride, ceil_mode=True)
+        elif mode == "min":
+            self.pool_query = - \
+                nn.MaxPool1d(stride, stride=stride, ceil_mode=True)
         self.should_pool_query = should_pool_query
         self.embed_dim = embed_dim
         self.kv_dim = embed_dim * (
             self.stride if should_pool_query else 1)
         self.block_id = block_id
         self.block_num = block_num
-        self.pooling_type = getattr(args, 'pooling_type', 'mean')
         # self.pooling_size = getattr(args, 'pooling_size', True)
         self.separate_cls = getattr(args, 'separate_cls', False)
         self.self_attn = self.build_self_attention(
@@ -99,43 +107,6 @@ class FunnelEncoderLayer(nn.Module):
             q_noise=self.quant_noise,
             qn_block_size=self.quant_noise_block_size,
         )
-
-    def pool_query(self, x):
-        """Pool vector"""
-        if x is None:
-            return None
-        mode = self.pooling_type
-        stride = self.stride
-
-        ndims = x.ndim
-        # TODO: Add pool query args to parser
-        # if self.separate_cls:
-        #     if False:
-        #         x = torch.cat([x[:, :1], x[:, :-1]], dim=1)
-        #     else:
-        #         x = torch.cat([x[:, :1], x], dim=1)
-
-        assert ndims == 2 or ndims == 3 or ndims == 4
-
-        # if ndims == 2:
-        #     x = x[:, None, :, None]
-        # elif ndims == 3:
-        #     x = x[:, None, :, :]
-
-        if mode == "mean":
-            x = nn.AvgPool1d(stride, stride=stride, ceil_mode=True)(x)
-        elif mode == "max":
-            x = nn.MaxPool1d(stride, stride=stride, ceil_mode=True)(x)
-        elif mode == "min":
-            x = -nn.MaxPool1d(stride, stride=stride, ceil_mode=True)(-x)
-        else:
-            raise NotImplementedError
-        # if ndims == 2:
-        #     x = x.squeeze(-1).squeeze(1)
-        # elif ndims == 3:
-        #     x = x.squeeze(1)
-
-        return x
 
     def forward(self, x, encoder_padding_mask, attn_mask: Optional[Tensor] = None):
         """Either adapted self-attention, or normal self-attention"""
