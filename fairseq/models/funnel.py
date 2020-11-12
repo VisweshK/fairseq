@@ -37,9 +37,9 @@ class FunnelTransformer(TransformerModel):
                             help='pooling stride during downsample.')
         parser.add_argument('--should-upsample', action='store_true',
                             help='upsample with skip connection')
-        parser.add_argument('--feature-compress', action='store_true',
+        parser.add_argument('--feature-compress', default=False, action='store_true',
                             help="should compress along feature dimension.")
-        parser.add_argument('--time-compress', action='store_false',
+        parser.add_argument('--time-compress', default=False, action='store_true',
                             help="should compress along time dimension.")
         parser.add_argument('--feature-compress-type', type=str, default="mean", 
                             help="type of feature compression to use.")

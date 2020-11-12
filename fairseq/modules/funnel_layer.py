@@ -29,8 +29,7 @@ class FunnelEncoderLayer(nn.Module):
         self.block_num = block_num
         self.should_compress_query = should_compress_query
         if self.should_compress_query:
-            self.should_compress_feature = getattr(
-                args, 'feature_compress', True)
+            self.should_compress_feature = args.feature_compress
             if self.should_compress_feature:
                 self.fc_compress_type = getattr(args, 'feature_compress_type', 'mean')
                 if self.fc_compress_type == "mean":
@@ -44,8 +43,7 @@ class FunnelEncoderLayer(nn.Module):
                 elif self.fc_compress_type == "min":
                     self.feature_compress_query = - \
                         nn.MaxPool1d(stride, stride=stride, ceil_mode=True)
-            self.should_compress_time = getattr(
-                args, 'time_compress', False)
+            self.should_compress_time = args.time_compress
             if self.should_compress_time:
                 self.time_compress_type = getattr(args, 'time_compress_type', 'mean')
         # self.pooling_size = getattr(args, 'pooling_size', True)
@@ -122,7 +120,7 @@ class FunnelEncoderLayer(nn.Module):
 
     def time_compress_query(self, tensor):
         """Apply 1D pooling to a tensor of size [B x T (x H)]."""
-        mode = self.time_pool_type
+        mode = self.time_compress_type
         stride= (self.stride, 1)
         if tensor is None:
             return None
