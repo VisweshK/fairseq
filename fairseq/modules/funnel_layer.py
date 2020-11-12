@@ -13,9 +13,9 @@ from torch import Tensor
 
 
 class FunnelEncoderLayer(nn.Module):
-    """Implement transformer encoder layer with query pooling"""
+    """Implement transformer encoder layer with query compression"""
 
-    def __init__(self, args, embed_dim, block_num, block_id, stride, should_pool_query):
+    def __init__(self, args, embed_dim, block_num, block_id, stride, should_compress_query):
         super().__init__()
         self.quant_noise = getattr(args, 'quant_noise_pq', 0)
         self.quant_noise_block_size = getattr(
@@ -24,30 +24,30 @@ class FunnelEncoderLayer(nn.Module):
         self.stride = stride
         self.embed_dim = embed_dim
         self.kv_dim = embed_dim * (
-            self.stride if should_pool_query else 1)
+            self.stride if should_compress_query else 1)
         self.block_id = block_id
         self.block_num = block_num
-        self.should_pool_query = should_pool_query
-        if self.should_pool_query:
-            self.should_pool_feature = getattr(
-                args, 'feature_pool', True)
-            if self.should_pool_feature:
-                self.fc_pool_type = getattr(args, 'feature_pool_type', 'mean')
-                if self.fc_pool_type == "mean":
-                    self.feature_pool_query = nn.AvgPool1d(
+        self.should_compress_query = should_compress_query
+        if self.should_compress_query:
+            self.should_compress_feature = getattr(
+                args, 'feature_compress', True)
+            if self.should_compress_feature:
+                self.fc_compress_type = getattr(args, 'feature_compress_type', 'mean')
+                if self.fc_compress_type == "mean":
+                    self.feature_compress_query = nn.AvgPool1d(
                         stride, stride=stride, ceil_mode=True)
-                elif self.fc_pool_type == "linear":
-                    self.feature_pool_query = nn.Linear(embed_dim * stride, embed_dim)
-                elif self.fc_pool_type == "max":
-                    self.feature_pool_query = nn.MaxPool1d(
+                elif self.fc_compress_type == "linear":
+                    self.feature_compress_query = nn.Linear(embed_dim * stride, embed_dim)
+                elif self.fc_compress_type == "max":
+                    self.feature_compress_query = nn.MaxPool1d(
                         stride, stride=stride, ceil_mode=True)
-                elif self.fc_pool_type == "min":
-                    self.feature_pool_query = - \
+                elif self.fc_compress_type == "min":
+                    self.feature_compress_query = - \
                         nn.MaxPool1d(stride, stride=stride, ceil_mode=True)
-            self.should_pool_time = getattr(
-                args, 'time_pool', False)
-            if self.should_pool_time:
-                self.time_pool_type = getattr(args, 'time_pool_type', 'mean')
+            self.should_compress_time = getattr(
+                args, 'time_compress', False)
+            if self.should_compress_time:
+                self.time_compress_type = getattr(args, 'time_compress_type', 'mean')
         # self.pooling_size = getattr(args, 'pooling_size', True)
         self.separate_cls = getattr(args, 'separate_cls', False)
         self.self_attn = self.build_self_attention(
@@ -120,7 +120,7 @@ class FunnelEncoderLayer(nn.Module):
             qn_block_size=self.quant_noise_block_size,
         )
 
-    def time_pool_query(self, tensor):
+    def time_compress_query(self, tensor):
         """Apply 1D pooling to a tensor of size [B x T (x H)]."""
         mode = self.time_pool_type
         stride= (self.stride, 1)
@@ -159,20 +159,20 @@ class FunnelEncoderLayer(nn.Module):
         if attn_mask is not None:
             attn_mask = attn_mask.masked_fill(attn_mask.to(torch.bool), -1e8)
 
-        no_pool = x
-        if self.should_pool_query:
-            if self.should_pool_feature:
-                x = self.feature_pool_query(x)
-            if self.should_pool_time:
-                x = self.time_pool_query(x)
+        no_compress = x
+        if self.should_compress_query:
+            if self.should_compress_feature:
+                x = self.feature_compress_query(x)
+            if self.should_compress_time:
+                x = self.time_compress_query(x)
 
         residual = x
         if self.normalize_before:
             x = self.self_attn_layer_norm(x)
         x, _ = self.self_attn(
             query=x,
-            key=no_pool,
-            value=no_pool,
+            key=no_compress,
+            value=no_compress,
             key_padding_mask=encoder_padding_mask,
             attn_mask=attn_mask,
         )
