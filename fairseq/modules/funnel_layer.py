@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from fairseq import utils
 from fairseq.modules import LayerNorm, MultiheadAttention
 from fairseq.modules.fairseq_dropout import FairseqDropout
@@ -21,21 +22,32 @@ class FunnelEncoderLayer(nn.Module):
             args, 'quant_noise_pq_block_size', 8) or 8
         # Funnel Args
         self.stride = stride
-        self.pooling_type = getattr(args, 'pooling_type', 'mean')
-        mode = self.pooling_type
-        if mode == "mean":
-            self.pool_query = nn.AvgPool1d(stride, stride=stride, ceil_mode=True)
-        elif mode == "max":
-            self.pool_query = nn.MaxPool1d(stride, stride=stride, ceil_mode=True)
-        elif mode == "min":
-            self.pool_query = - \
-                nn.MaxPool1d(stride, stride=stride, ceil_mode=True)
-        self.should_pool_query = should_pool_query
         self.embed_dim = embed_dim
         self.kv_dim = embed_dim * (
             self.stride if should_pool_query else 1)
         self.block_id = block_id
         self.block_num = block_num
+        self.should_pool_query = should_pool_query
+        if self.should_pool_query:
+            self.should_pool_feature = getattr(
+                args, 'feature_pool', True)
+            if self.should_pool_feature:
+                self.fc_pool_type = getattr(args, 'feature_pool_type', 'mean')
+                if self.fc_pool_type == "mean":
+                    self.fc_pool_query = nn.AvgPool1d(
+                        stride, stride=stride, ceil_mode=True)
+                elif self.fc_pool_type == "linear":
+                    self.fc_pool_query = nn.Linear(embed_dim * stride, embed_dim)
+                elif self.fc_pool_type == "max":
+                    self.fc_pool_query = nn.MaxPool1d(
+                        stride, stride=stride, ceil_mode=True)
+                elif self.fc_pool_type == "min":
+                    self.fc_pool_query = - \
+                        nn.MaxPool1d(stride, stride=stride, ceil_mode=True)
+            self.should_pool_time = getattr(
+                args, 'time_pool', False)
+            if self.should_pool_time:
+                self.time_pool_type = getattr(args, 'time_pool_type', 'mean')
         # self.pooling_size = getattr(args, 'pooling_size', True)
         self.separate_cls = getattr(args, 'separate_cls', False)
         self.self_attn = self.build_self_attention(
@@ -108,6 +120,39 @@ class FunnelEncoderLayer(nn.Module):
             qn_block_size=self.quant_noise_block_size,
         )
 
+    def time_pool_query(self, tensor):
+        """Apply 1D pooling to a tensor of size [B x T (x H)]."""
+        mode = self.time_pool_type
+        stride= (self.stride, 1)
+        if tensor is None:
+            return None
+
+        ndims = tensor.ndim
+        assert ndims == 2 or ndims == 3 or ndims == 4
+
+        if ndims == 2:
+            tensor = tensor[:, None, :, None]
+        elif ndims == 3:
+            tensor = tensor[:, None, :, :]
+
+        if mode == "mean":
+            tensor = F.avg_pool2d(
+                tensor, stride, stride=stride, ceil_mode=True)
+        elif mode == "max":
+            tensor = F.max_pool2d(
+                tensor, stride, stride=stride, ceil_mode=True)
+        elif mode == "min":
+            tensor = -F.max_pool2d(
+                -tensor, stride, stride=stride, ceil_mode=True)
+        else:
+            raise NotImplementedError
+        if ndims == 2:
+            tensor = tensor.squeeze(-1).squeeze(1)
+        elif ndims == 3:
+            tensor = tensor.squeeze(1)
+
+        return tensor
+
     def forward(self, x, encoder_padding_mask, attn_mask: Optional[Tensor] = None):
         """Either adapted self-attention, or normal self-attention"""
 
@@ -116,7 +161,10 @@ class FunnelEncoderLayer(nn.Module):
 
         no_pool = x
         if self.should_pool_query:
-            x = self.pool_query(x)
+            if self.should_pool_feature:
+                x = self.feature_pool_query(x)
+            if self.should_pool_time:
+                x = self.time_pool_query(x)
 
         residual = x
         if self.normalize_before:

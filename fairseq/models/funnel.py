@@ -275,6 +275,7 @@ def funnel_transformer_iwslt_de_en(args):
     args.encoder_layers = getattr(args, "encoder_layers", 4)
     args.num_blocks = getattr(args, "num_blocks", 4)
     args.upsample = getattr(args, "upsample", True)
+    args.should_feature_pool = getattr(args, "feature_pool", True)
     args.decoder_embed_dim = getattr(args, "decoder_embed_dim", 512)
     args.decoder_ffn_embed_dim = getattr(args, "decoder_ffn_embed_dim", 1024)
     args.decoder_attention_heads = getattr(args, "decoder_attention_heads", 4)
