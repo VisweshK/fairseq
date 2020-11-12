@@ -123,6 +123,8 @@ class FunnelEncoder(TransformerEncoder):
         self.stride = args.stride
         self.num_blocks = args.num_blocks
         self.encoder_layers = args.encoder_layers
+        self.should_time_compress = args.time_compress
+        self.should_feature_compress = args.feature_compress
         self.upsample = args.upsample
         # Recreate Layers with Funnel Encoders
         if self.encoder_layerdrop > 0.0:
@@ -135,7 +137,7 @@ class FunnelEncoder(TransformerEncoder):
                 self.layers.append(
                     self.build_funnel_encoder_layer(
                         args,
-                        self.embed_dim // (self.stride ** block_num),
+                        self.embed_dim // (self.stride ** block_num) if self.should_feature_compress else self.embed_dim,
                         block_num,
                         block_id,
                         self.stride,
@@ -283,6 +285,8 @@ def funnel_transformer_iwslt_de_en(args):
     args.encoder_layers = getattr(args, "encoder_layers", 4)
     args.num_blocks = getattr(args, "num_blocks", 4)
     args.upsample = getattr(args, "upsample", True)
+    args.feature_compress = getattr(args, "feature_compress", False)
+    args.time_compress = getattr(args, "time_compress", True)
     args.decoder_embed_dim = getattr(args, "decoder_embed_dim", 512)
     args.decoder_ffn_embed_dim = getattr(args, "decoder_ffn_embed_dim", 1024)
     args.decoder_attention_heads = getattr(args, "decoder_attention_heads", 4)

@@ -23,8 +23,6 @@ class FunnelEncoderLayer(nn.Module):
         # Funnel Args
         self.stride = stride
         self.embed_dim = embed_dim
-        self.kv_dim = embed_dim * (
-            self.stride if should_compress_query else 1)
         self.block_id = block_id
         self.block_num = block_num
         self.should_compress_query = should_compress_query
@@ -46,6 +44,8 @@ class FunnelEncoderLayer(nn.Module):
             self.should_compress_time = args.time_compress
             if self.should_compress_time:
                 self.time_compress_type = getattr(args, 'time_compress_type', 'mean')
+        self.kv_dim = embed_dim * (
+            self.stride if should_compress_query and self.should_compress_feature else 1)
         # self.pooling_size = getattr(args, 'pooling_size', True)
         self.separate_cls = getattr(args, 'separate_cls', False)
         self.self_attn = self.build_self_attention(
