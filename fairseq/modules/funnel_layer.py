@@ -34,15 +34,15 @@ class FunnelEncoderLayer(nn.Module):
             if self.should_pool_feature:
                 self.fc_pool_type = getattr(args, 'feature_pool_type', 'mean')
                 if self.fc_pool_type == "mean":
-                    self.fc_pool_query = nn.AvgPool1d(
+                    self.feature_pool_query = nn.AvgPool1d(
                         stride, stride=stride, ceil_mode=True)
                 elif self.fc_pool_type == "linear":
-                    self.fc_pool_query = nn.Linear(embed_dim * stride, embed_dim)
+                    self.feature_pool_query = nn.Linear(embed_dim * stride, embed_dim)
                 elif self.fc_pool_type == "max":
-                    self.fc_pool_query = nn.MaxPool1d(
+                    self.feature_pool_query = nn.MaxPool1d(
                         stride, stride=stride, ceil_mode=True)
                 elif self.fc_pool_type == "min":
-                    self.fc_pool_query = - \
+                    self.feature_pool_query = - \
                         nn.MaxPool1d(stride, stride=stride, ceil_mode=True)
             self.should_pool_time = getattr(
                 args, 'time_pool', False)
