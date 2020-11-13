@@ -126,6 +126,9 @@ class FunnelEncoder(TransformerEncoder):
         self.should_time_compress = args.time_compress
         self.should_feature_compress = args.feature_compress
         self.upsample = args.upsample
+        if self.should_time_compress:
+            self.compress_encoder_padding_mask_fn = nn.MaxPool1d(
+                    stride, stride=stride, ceil_mode=True)
         # Recreate Layers with Funnel Encoders
         if self.encoder_layerdrop > 0.0:
             self.layers = LayerDropModuleList(p=self.encoder_layerdrop)
