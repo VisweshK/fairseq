@@ -134,10 +134,8 @@ class FunnelEncoderLayer(nn.Module):
     def time_compress_query(self, tensor):
         """Flip axes, pool and flip back."""
 
-        tensor = torch.movedim(tensor, (0, 1, 2), (2, 0, 1))
-        tensor = self.time_compress_query_fn(tensor)
-        tensor = torch.movedim(tensor, (2, 0, 1), (0, 1, 2))
-
+        tensor = self.time_compress_query_fn(tensor.permute(1, 2, 0)).permute(2, 0, 1)
+        
         return tensor
 
     def forward(self, x, encoder_padding_mask, attn_mask: Optional[Tensor] = None):
