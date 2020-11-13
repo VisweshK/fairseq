@@ -164,11 +164,10 @@ class FunnelEncoder(TransformerEncoder):
     def upsample(self, x, src_len):
         """Upsample"""
         if self.should_feature_compress:
-            return self.upsample_fn(x)
+            x = self.upsample_fn(x)
         if self.should_time_compress:
-            return self.upsample_fn(x.permute(1, 2, 0)).permute(2, 0, 1)[:src_len]
-        else:
-            return x
+            x = self.upsample_fn(x.permute(1, 2, 0)).permute(2, 0, 1)[:src_len]
+        return x
         
 
     def forward(
