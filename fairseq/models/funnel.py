@@ -148,6 +148,12 @@ class FunnelEncoder(TransformerEncoder):
 
     def build_funnel_encoder_layer(self, args, embed_dim, block_num, block_id, stride, should_pool_query):
         return FunnelEncoderLayer(args, embed_dim, block_num, block_id, stride, should_pool_query)
+    
+    def time_compress_encoder_padding_mask(self, mask):
+        """Max pool along time axis"""
+        mask = torch.unsqueeze(mask, 0).to(dtype=torch.float32)
+        mask = self.compress_encoder_padding_mask_fn(mask) > 0
+        return torch.squeeze(mask, 0)
 
     def forward(
         self,
@@ -193,6 +199,8 @@ class FunnelEncoder(TransformerEncoder):
         # encoder layers
         for layer in self.layers:
             x = layer(x, encoder_padding_mask)
+            if layer.block_id == self.encoder_layers - 1 and self.should_time_compress:
+                encoder_padding_mask = self.time_compress_encoder_padding_mask(encoder_padding_mask)
             if layer.block_id == self.encoder_layers - 1 and layer.block_num == 0:
                 residual = x
             if return_all_hiddens:
