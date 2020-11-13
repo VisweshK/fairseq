@@ -208,7 +208,7 @@ class FunnelEncoder(TransformerEncoder):
         x = x.transpose(0, 1)
 
         # compute padding mask
-        encoder_padding_mask = src_tokens.eq(self.padding_idx)
+        orig_encoder_padding_mask = encoder_padding_mask = src_tokens.eq(self.padding_idx)
         src_len = encoder_padding_mask.size(1)
 
         encoder_states = [] if return_all_hiddens else None
@@ -232,7 +232,7 @@ class FunnelEncoder(TransformerEncoder):
 
         return EncoderOut(
             encoder_out=x,  # T x B x C
-            encoder_padding_mask=encoder_padding_mask,  # B x T
+            encoder_padding_mask=orig_encoder_padding_mask,  # B x T
             encoder_embedding=encoder_embedding,  # B x T x C
             encoder_states=encoder_states,  # List[T x B x C]
             src_tokens=None,
