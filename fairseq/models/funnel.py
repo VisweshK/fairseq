@@ -126,6 +126,9 @@ class FunnelEncoder(TransformerEncoder):
         self.should_time_compress = args.time_compress
         self.should_feature_compress = args.feature_compress
         self.should_upsample = args.upsample
+        if self.should_upsample:
+            self.upsample_fn = nn.Upsample(
+                scale_factor=self.stride ** (self.num_blocks - 1), mode="nearest")
         if self.should_time_compress:
             self.compress_encoder_padding_mask_fn = nn.MaxPool1d(
                     self.stride, stride=self.stride, ceil_mode=True)
@@ -158,11 +161,12 @@ class FunnelEncoder(TransformerEncoder):
         mask = self.compress_encoder_padding_mask_fn(mask) > 0
         return torch.squeeze(mask, 0)
 
-    def upsample(self, x):
+    def upsample(self, x, src_len):
+        """Upsample"""
         if self.should_feature_compress:
-            return nn.Upsample(scale_factor=self.stride ** (self.num_blocks - 1), mode="nearest")(x)
+            return self.upsample_fn(x)
         elif self.should_time_compress:
-            return nn.Upsample(scale_factor=self.stride ** (self.num_blocks - 1), mode="nearest")(x.permute(1, 2, 0)).permute(2, 0, 1)
+            return self.upsample_fn(x.permute(1, 2, 0)).permute(2, 0, 1)[:src_len]
         else:
             return x
         
@@ -205,6 +209,7 @@ class FunnelEncoder(TransformerEncoder):
 
         # compute padding mask
         encoder_padding_mask = src_tokens.eq(self.padding_idx)
+        src_len = encoder_padding_mask.size(1)
 
         encoder_states = [] if return_all_hiddens else None
 
@@ -223,7 +228,7 @@ class FunnelEncoder(TransformerEncoder):
             x = self.layer_norm(x)
 
         if self.should_upsample:
-            x = residual + self.upsample(x)
+            x = residual + self.upsample(x, src_len)
 
         return EncoderOut(
             encoder_out=x,  # T x B x C
