@@ -43,8 +43,6 @@ class FunnelEncoderLayer(nn.Module):
                         nn.MaxPool1d(stride, stride=stride, ceil_mode=True)
             self.should_compress_time = args.time_compress
             if self.should_compress_time:
-                self.compress_encoder_padding_mask_fn = nn.MaxPool1d(
-                    stride, stride=stride, ceil_mode=True)
                 self.time_compress_type = getattr(
                     args, 'time_compress_type', 'mean')
                 if self.time_compress_type == "mean":

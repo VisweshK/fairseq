@@ -125,7 +125,7 @@ class FunnelEncoder(TransformerEncoder):
         self.encoder_layers = args.encoder_layers
         self.should_time_compress = args.time_compress
         self.should_feature_compress = args.feature_compress
-        self.upsample = args.upsample
+        self.should_upsample = args.upsample
         if self.should_time_compress:
             self.compress_encoder_padding_mask_fn = nn.MaxPool1d(
                     self.stride, stride=self.stride, ceil_mode=True)
@@ -157,6 +157,15 @@ class FunnelEncoder(TransformerEncoder):
         mask = torch.unsqueeze(mask, 0).to(dtype=torch.float32)
         mask = self.compress_encoder_padding_mask_fn(mask) > 0
         return torch.squeeze(mask, 0)
+
+    def upsample(self, x):
+        if self.should_feature_compress:
+            return nn.Upsample(scale_factor=self.stride ** (self.num_blocks - 1), mode="nearest")(x)
+        elif self.should_time_compress:
+            return nn.Upsample(scale_factor=self.stride ** (self.num_blocks - 1), mode="nearest")(x.permute(1, 2, 0)).permute(2, 0, 1)
+        else:
+            return x
+        
 
     def forward(
         self,
@@ -213,10 +222,8 @@ class FunnelEncoder(TransformerEncoder):
         if self.layer_norm is not None:
             x = self.layer_norm(x)
 
-        if self.upsample:
-            x = residual + \
-                nn.Upsample(
-                    scale_factor=self.stride ** (self.num_blocks - 1), mode="nearest")(x)
+        if self.should_upsample:
+            x = residual + self.upsample(x)
 
         return EncoderOut(
             encoder_out=x,  # T x B x C
