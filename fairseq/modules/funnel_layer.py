@@ -29,21 +29,34 @@ class FunnelEncoderLayer(nn.Module):
         if self.should_compress_query:
             self.should_compress_feature = args.feature_compress
             if self.should_compress_feature:
-                self.fc_compress_type = getattr(args, 'feature_compress_type', 'mean')
-                if self.fc_compress_type == "mean":
+                self.feature_compress_type = getattr(args, 'feature_compress_type', 'mean')
+                if self.feature_compress_type == "mean":
                     self.feature_compress_query = nn.AvgPool1d(
                         stride, stride=stride, ceil_mode=True)
-                elif self.fc_compress_type == "linear":
+                elif self.feature_compress_type == "linear":
                     self.feature_compress_query = nn.Linear(embed_dim * stride, embed_dim)
-                elif self.fc_compress_type == "max":
+                elif self.feature_compress_type == "max":
                     self.feature_compress_query = nn.MaxPool1d(
                         stride, stride=stride, ceil_mode=True)
-                elif self.fc_compress_type == "min":
+                elif self.feature_compress_type == "min":
                     self.feature_compress_query = - \
                         nn.MaxPool1d(stride, stride=stride, ceil_mode=True)
             self.should_compress_time = args.time_compress
             if self.should_compress_time:
-                self.time_compress_type = getattr(args, 'time_compress_type', 'mean')
+                self.time_compress_type = getattr(
+                    args, 'time_compress_type', 'mean')
+                if self.time_compress_type == "mean":
+                    self.time_compress_query_fn = nn.AvgPool1d(
+                        stride, stride=stride, ceil_mode=True)
+                # elif self.time_compress_type == "linear":
+                #     self.time_compress_query = nn.Linear(
+                #         embed_dim * stride, embed_dim)
+                elif self.time_compress_type == "max":
+                    self.time_compress_query_fn = nn.MaxPool1d(
+                        stride, stride=stride, ceil_mode=True)
+                elif self.time_compress_type == "min":
+                    self.time_compress_query_fn = - \
+                        nn.MaxPool1d(stride, stride=stride, ceil_mode=True)
         self.kv_dim = embed_dim * (
             self.stride if should_compress_query and self.should_compress_feature else 1)
         # self.pooling_size = getattr(args, 'pooling_size', True)
@@ -119,35 +132,11 @@ class FunnelEncoderLayer(nn.Module):
         )
 
     def time_compress_query(self, tensor):
-        """Apply 1D pooling to a tensor of size [B x T (x H)]."""
-        mode = self.time_compress_type
-        stride= (self.stride, 1)
-        if tensor is None:
-            return None
+        """Flip axes, pool and flip back."""
 
-        ndims = tensor.ndim
-        assert ndims == 2 or ndims == 3 or ndims == 4
-
-        if ndims == 2:
-            tensor = tensor[:, None, :, None]
-        elif ndims == 3:
-            tensor = tensor[:, None, :, :]
-
-        if mode == "mean":
-            tensor = F.avg_pool2d(
-                tensor, stride, stride=stride, ceil_mode=True)
-        elif mode == "max":
-            tensor = F.max_pool2d(
-                tensor, stride, stride=stride, ceil_mode=True)
-        elif mode == "min":
-            tensor = -F.max_pool2d(
-                -tensor, stride, stride=stride, ceil_mode=True)
-        else:
-            raise NotImplementedError
-        if ndims == 2:
-            tensor = tensor.squeeze(-1).squeeze(1)
-        elif ndims == 3:
-            tensor = tensor.squeeze(1)
+        tensor.transpose(1, 2, 0)
+        tensor = self.time_compress_query_fn(tensor)
+        tensor.transpose(2, 0, 1)
 
         return tensor
 
