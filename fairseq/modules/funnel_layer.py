@@ -142,7 +142,7 @@ class FunnelEncoderLayer(nn.Module):
     
     def time_compress_encoder_padding_mask(self, mask):
         """Max pool along time axis"""
-        mask.unsqueeze(0)
+        mask = torch.unsqueeze(mask, 0)
         return self.compress_encoder_padding_mask_fn(mask)
 
     def forward(self, x, encoder_padding_mask, attn_mask: Optional[Tensor] = None):
