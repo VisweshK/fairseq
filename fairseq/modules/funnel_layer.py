@@ -43,7 +43,7 @@ class FunnelEncoderLayer(nn.Module):
                         nn.MaxPool1d(stride, stride=stride, ceil_mode=True)
             self.should_compress_time = args.time_compress
             if self.should_compress_time:
-                self.compress_encoder_padding_mask = nn.MaxPool1d(
+                self.compress_encoder_padding_mask_fn = nn.MaxPool1d(
                     stride, stride=stride, ceil_mode=True)
                 self.time_compress_type = getattr(
                     args, 'time_compress_type', 'mean')
@@ -139,6 +139,11 @@ class FunnelEncoderLayer(nn.Module):
         tensor = self.time_compress_query_fn(tensor.permute(1, 2, 0)).permute(2, 0, 1)
 
         return tensor
+    
+    def time_compress_encoder_padding_mask(self, mask):
+        """Max pool along time axis"""
+        mask.unsqueeze(0)
+        return self.compress_encoder_padding_mask_fn(mask)
 
     def forward(self, x, encoder_padding_mask, attn_mask: Optional[Tensor] = None):
         """Either adapted self-attention, or normal self-attention"""
@@ -152,7 +157,7 @@ class FunnelEncoderLayer(nn.Module):
                 x = self.feature_compress_query(x)
             if self.should_compress_time:
                 x = self.time_compress_query(x)
-                encoder_padding_mask = self.compress_encoder_padding_mask(encoder_padding_mask)
+                encoder_padding_mask = self.time_compress_encoder_padding_mask(encoder_padding_mask)
 
         residual = x
         if self.normalize_before:
