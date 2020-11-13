@@ -143,7 +143,8 @@ class FunnelEncoderLayer(nn.Module):
     def time_compress_encoder_padding_mask(self, mask):
         """Max pool along time axis"""
         mask = torch.unsqueeze(mask, 0).to(dtype=torch.float32)
-        return self.compress_encoder_padding_mask_fn(mask) > 0
+        mask = self.compress_encoder_padding_mask_fn(mask) > 0
+        return torch.squeeze(mask, 0)
 
     def forward(self, x, encoder_padding_mask, attn_mask: Optional[Tensor] = None):
         """Either adapted self-attention, or normal self-attention"""
