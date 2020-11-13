@@ -152,21 +152,21 @@ class FunnelEncoderLayer(nn.Module):
         if attn_mask is not None:
             attn_mask = attn_mask.masked_fill(attn_mask.to(torch.bool), -1e8)
 
-        no_compress = x
+        kv = x
         if self.should_compress_query:
+            if self.should_compress_time:
+                kv = x = self.time_compress_query(x)
+                encoder_padding_mask = self.time_compress_encoder_padding_mask(encoder_padding_mask)
             if self.should_compress_feature:
                 x = self.feature_compress_query(x)
-            if self.should_compress_time:
-                x = self.time_compress_query(x)
-                encoder_padding_mask = self.time_compress_encoder_padding_mask(encoder_padding_mask)
 
         residual = x
         if self.normalize_before:
             x = self.self_attn_layer_norm(x)
         x, _ = self.self_attn(
             query=x,
-            key=no_compress,
-            value=no_compress,
+            key=kv,
+            value=kv,
             key_padding_mask=encoder_padding_mask,
             attn_mask=attn_mask,
         )
