@@ -23,7 +23,8 @@ class FunnelEncoderLayer(nn.Module):
         # Funnel Args
         self.stride = stride
         self.embed_dim = embed_dim
-        self.block_id = block_id
+        self.ffn_embed_dim = self.embed_dim * self.stride
+	self.block_id = block_id
         self.block_num = block_num
         self.should_compress_query = should_compress_query
         if self.should_compress_query:
@@ -80,12 +81,12 @@ class FunnelEncoderLayer(nn.Module):
         self.normalize_before = args.encoder_normalize_before
         self.fc1 = self.build_fc1(
             self.embed_dim,
-            args.encoder_ffn_embed_dim,
+            self.ffn_embed_dim,
             self.quant_noise,
             self.quant_noise_block_size,
         )
         self.fc2 = self.build_fc2(
-            args.encoder_ffn_embed_dim,
+            self.ffn_embed_dim,
             self.embed_dim,
             self.quant_noise,
             self.quant_noise_block_size,
