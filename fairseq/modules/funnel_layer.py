@@ -24,18 +24,20 @@ class FunnelEncoderLayer(nn.Module):
         self.stride = stride
         self.embed_dim = embed_dim
         self.ffn_embed_dim = self.embed_dim * self.stride
-	self.block_id = block_id
+        self.block_id = block_id
         self.block_num = block_num
         self.should_compress_query = should_compress_query
         if self.should_compress_query:
             self.should_compress_feature = args.feature_compress
             if self.should_compress_feature:
-                self.feature_compress_type = getattr(args, 'feature_compress_type', 'mean')
+                self.feature_compress_type = getattr(
+                    args, 'feature_compress_type', 'mean')
                 if self.feature_compress_type == "mean":
                     self.feature_compress_query = nn.AvgPool1d(
                         stride, stride=stride, ceil_mode=True)
                 elif self.feature_compress_type == "linear":
-                    self.feature_compress_query = nn.Linear(embed_dim * stride, embed_dim)
+                    self.feature_compress_query = nn.Linear(
+                        embed_dim * stride, embed_dim)
                 elif self.feature_compress_type == "max":
                     self.feature_compress_query = nn.MaxPool1d(
                         stride, stride=stride, ceil_mode=True)
@@ -135,7 +137,8 @@ class FunnelEncoderLayer(nn.Module):
     def time_compress_query(self, tensor):
         """Flip axes, pool and flip back."""
 
-        tensor = self.time_compress_query_fn(tensor.permute(1, 2, 0)).permute(2, 0, 1)
+        tensor = self.time_compress_query_fn(
+            tensor.permute(1, 2, 0)).permute(2, 0, 1)
 
         return tensor
 
