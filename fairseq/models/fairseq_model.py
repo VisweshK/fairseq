@@ -40,7 +40,8 @@ class BaseFairseqModel(nn.Module):
         """Add model-specific arguments to the parser."""
         dc = getattr(cls, "__dataclass", None)
         if dc is not None:
-            gen_parser_from_dataclass(parser, dc())
+            # do not set defaults so that settings defaults from various architectures still works
+            gen_parser_from_dataclass(parser, dc(), delete_default=True)
 
     @classmethod
     def build_model(cls, args, task):
@@ -176,7 +177,7 @@ class BaseFairseqModel(nn.Module):
         def apply_remove_weight_norm(module):
             try:
                 nn.utils.remove_weight_norm(module)
-            except ValueError:  # this module didn't have weight norm
+            except (AttributeError, ValueError):  # this module didn't have weight norm
                 return
 
         self.apply(apply_remove_weight_norm)
@@ -238,11 +239,6 @@ class BaseFairseqModel(nn.Module):
         self.apply(apply_prepare_for_tpu_)
 
     @classmethod
-    def upgrade_args(cls, args):
-        if hasattr(args, "max_sentences") and not hasattr(args, "batch_size"):
-            args.batch_size = args.max_sentences
-
-    @classmethod
     def from_pretrained(
         cls,
         model_name_or_path,
@@ -280,9 +276,6 @@ class BaseFairseqModel(nn.Module):
             archive_map=cls.hub_models(),
             **kwargs,
         )
-
-        cls.upgrade_args(x["args"])
-
         logger.info(x["args"])
         return hub_utils.GeneratorHubInterface(x["args"], x["task"], x["models"])
 

@@ -250,7 +250,6 @@ class RobertaModel(FairseqEncoderModel):
             load_checkpoint_heads=True,
             **kwargs,
         )
-        cls.upgrade_args(x["args"])
 
         logger.info(x["args"])
         return RobertaHubInterface(x["args"], x["task"], x["models"][0])
@@ -394,6 +393,9 @@ class RobertaEncoder(FairseqEncoder):
 
     def __init__(self, args, dictionary):
         super().__init__(dictionary)
+
+        # set any missing default values
+        base_architecture(args)
         self.args = args
 
         if args.encoder_layers_to_keep:
@@ -418,7 +420,6 @@ class RobertaEncoder(FairseqEncoder):
             q_noise=args.quant_noise_pq,
             qn_block_size=args.quant_noise_pq_block_size,
         )
-        args.untie_weights_roberta = getattr(args, "untie_weights_roberta", False)
 
         self.lm_head = RobertaLMHead(
             embed_dim=args.encoder_embed_dim,
@@ -495,7 +496,7 @@ def base_architecture(args):
     args.pooler_dropout = getattr(args, "pooler_dropout", 0.0)
     args.encoder_layers_to_keep = getattr(args, "encoder_layers_to_keep", None)
     args.encoder_layerdrop = getattr(args, "encoder_layerdrop", 0.0)
-    args.encoder_layerdrop = getattr(args, "encoder_layerdrop", 0.0)
+    args.untie_weights_roberta = getattr(args, "untie_weights_roberta", False)
     args.spectral_norm_classification_head = getattr(
         args, "spectral_norm_classification_head", False
     )

@@ -13,11 +13,8 @@ from itertools import chain
 
 import torch
 from fairseq import checkpoint_utils, distributed_utils, options, utils
-from fairseq.dataclass.data_class import register_hydra_cfg
 from fairseq.dataclass.utils import convert_namespace_to_omegaconf
 from fairseq.logging import metrics, progress_bar
-from hydra.core.config_store import ConfigStore
-from hydra.experimental import initialize
 from omegaconf import DictConfig
 
 
@@ -54,7 +51,7 @@ def main(cfg: DictConfig, override_args=None):
 
     # Load ensemble
     logger.info("loading model(s) from {}".format(cfg.common_eval.path))
-    models, model_args, task = checkpoint_utils.load_model_ensemble_and_task(
+    models, saved_cfg, task = checkpoint_utils.load_model_ensemble_and_task(
         [cfg.common_eval.path],
         arg_overrides=overrides,
         suffix=cfg.checkpoint.checkpoint_suffix,
@@ -69,15 +66,15 @@ def main(cfg: DictConfig, override_args=None):
             model.cuda()
 
     # Print args
-    logger.info(model_args)
+    logger.info(saved_cfg)
 
     # Build criterion
-    criterion = task.build_criterion(model_args.criterion)
+    criterion = task.build_criterion(saved_cfg.criterion)
     criterion.eval()
 
     for subset in cfg.dataset.valid_subset.split(","):
         try:
-            task.load_dataset(subset, combine=False, epoch=1)
+            task.load_dataset(subset, combine=False, epoch=1, task_cfg=saved_cfg.task)
             dataset = task.dataset(subset)
         except KeyError:
             raise Exception("Cannot find dataset: " + subset)
@@ -118,6 +115,7 @@ def main(cfg: DictConfig, override_args=None):
             log_outputs = distributed_utils.all_gather_list(
                 log_outputs,
                 max_size=cfg.common.all_gather_list_size,
+                group=distributed_utils.get_data_parallel_group(),
             )
             log_outputs = list(chain.from_iterable(log_outputs))
 
@@ -136,11 +134,8 @@ def cli_main():
     override_parser = options.get_validation_parser()
     override_args = options.parse_args_and_arch(override_parser, suppress_defaults=True)
 
-    distributed_utils.call_main(args, main, override_args=override_args)
+    distributed_utils.call_main(convert_namespace_to_omegaconf(args), main, override_args=override_args)
 
 
 if __name__ == "__main__":
-    cs = ConfigStore.instance()
-    register_hydra_cfg(cs)
-    initialize(config_path="../config", strict=True)
     cli_main()

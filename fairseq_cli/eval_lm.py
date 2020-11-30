@@ -16,13 +16,10 @@ from argparse import Namespace
 import torch
 from fairseq import checkpoint_utils, distributed_utils, options, tasks, utils
 from fairseq.data import LMContextWindowDataset
-from fairseq.dataclass.data_class import register_hydra_cfg
 from fairseq.dataclass.utils import convert_namespace_to_omegaconf
 from fairseq.logging import progress_bar
 from fairseq.logging.meters import StopwatchMeter, TimeMeter
 from fairseq.sequence_scorer import SequenceScorer
-from hydra.core.config_store import ConfigStore
-from hydra.experimental import initialize
 from omegaconf import DictConfig
 
 
@@ -66,7 +63,7 @@ class WordStat(object):
         )
 
 
-def main(cfg: DictConfig, override_args=None, **unused_kwargs):
+def main(cfg: DictConfig, **unused_kwargs):
     if isinstance(cfg, Namespace):
         cfg = convert_namespace_to_omegaconf(cfg)
 
@@ -78,12 +75,6 @@ def main(cfg: DictConfig, override_args=None, **unused_kwargs):
     if use_cuda:
         torch.cuda.set_device(cfg.distributed_training.device_id)
 
-    if override_args is not None:
-        overrides = vars(override_args)
-        overrides.update(eval(getattr(override_args, "model_overrides", "{}")))
-    else:
-        overrides = None
-
     logger.info(cfg)
 
     # Load ensemble
@@ -92,12 +83,17 @@ def main(cfg: DictConfig, override_args=None, **unused_kwargs):
     # reduce tokens per sample by the required context window size
     cfg.task.tokens_per_sample -= cfg.eval_lm.context_window
 
+    # Initialize the task using the current *cfg*
+    task = tasks.setup_task(cfg.task)
+
+    # Initialize the model (but not the task) using the checkpoint's *cfg*
     models, model_args, task = checkpoint_utils.load_model_ensemble_and_task(
         [cfg.common_eval.path],
-        arg_overrides=overrides,
+        arg_overrides=eval(cfg.common_eval.model_overrides),
         suffix=cfg.checkpoint.checkpoint_suffix,
         strict=(cfg.checkpoint.checkpoint_shard_count == 1),
         num_shards=cfg.checkpoint.checkpoint_shard_count,
+        task=task,
     )
 
     # Load dataset splits
@@ -159,11 +155,11 @@ def main(cfg: DictConfig, override_args=None, **unused_kwargs):
     score_sum = 0.0
     count = 0
 
-    if cfg.common_eval.remove_bpe is not None:
-        if cfg.common_eval.remove_bpe == "sentencepiece":
+    if cfg.common_eval.post_process is not None:
+        if cfg.common_eval.post_process == "sentencepiece":
             raise NotImplementedError
         else:
-            bpe_cont = cfg.common_eval.remove_bpe.rstrip()
+            bpe_cont = cfg.common_eval.post_process.rstrip()
             bpe_toks = {
                 i
                 for i in range(len(task.source_dictionary))
@@ -196,7 +192,7 @@ def main(cfg: DictConfig, override_args=None, **unused_kwargs):
             tgt_len = tokens.numel()
             pos_scores = hypo["positional_scores"].float()
 
-            if cfg.task.add_bos_token:
+            if getattr(cfg.task, "add_bos_token", False):
                 assert hypo["tokens"][0].item() == task.target_dictionary.bos()
                 tokens = tokens[1:]
                 pos_scores = pos_scores[1:]
@@ -259,10 +255,10 @@ def main(cfg: DictConfig, override_args=None, **unused_kwargs):
         wps_meter.update(sample["ntokens"])
         progress.log({"wps": round(wps_meter.avg)})
 
-    avg_nll_loss = -score_sum / count / math.log(2)  # convert to base 2
+    avg_nll_loss = -score_sum / count / math.log(2) if count > 0 else 0  # convert to base 2
     logger.info(
         "Evaluated {} tokens in {:.1f}s ({:.2f} tokens/s)".format(
-            gen_timer.n, gen_timer.sum, 1.0 / gen_timer.avg
+            gen_timer.n, gen_timer.sum, 1.0 / gen_timer.avg if gen_timer.avg > 0 else 0
         )
     )
     logger.info(
@@ -280,15 +276,8 @@ def cli_main():
     parser = options.get_eval_lm_parser()
     args = options.parse_args_and_arch(parser)
 
-    # only override args that are explicitly given on the command line
-    override_parser = options.get_validation_parser()
-    override_args = options.parse_args_and_arch(override_parser, suppress_defaults=True)
-
-    distributed_utils.call_main(args, main, override_args=override_args)
+    distributed_utils.call_main(convert_namespace_to_omegaconf(args), main)
 
 
 if __name__ == "__main__":
-    cs = ConfigStore.instance()
-    register_hydra_cfg(cs)
-    initialize(config_path="../config", strict=True)
     cli_main()

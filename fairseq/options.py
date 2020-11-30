@@ -9,7 +9,7 @@ from typing import Callable, List, Optional
 import torch
 from fairseq import utils
 from fairseq.data.indexed_dataset import get_available_dataset_impl
-from fairseq.dataclass.data_class import (
+from fairseq.dataclass.configs import (
     CheckpointConfig,
     CommonConfig,
     CommonEvalConfig,
@@ -141,6 +141,16 @@ def parse_args_and_arch(
         else:
             raise RuntimeError()
 
+    if hasattr(args, "task"):
+        from fairseq.tasks import TASK_REGISTRY
+
+        TASK_REGISTRY[args.task].add_args(parser)
+    if getattr(args, "use_bmuf", False):
+        # hack to support extra args for block distributed data parallelism
+        from fairseq.optim.bmuf import FairseqBMUF
+
+        FairseqBMUF.add_args(parser)
+
     # Add *-specific args to parser.
     from fairseq.registry import REGISTRIES
 
@@ -152,16 +162,6 @@ def parse_args_and_arch(
                 cls.add_args(parser)
             elif hasattr(cls, "__dataclass"):
                 gen_parser_from_dataclass(parser, cls.__dataclass())
-
-    if hasattr(args, "task"):
-        from fairseq.tasks import TASK_REGISTRY
-
-        TASK_REGISTRY[args.task].add_args(parser)
-    if getattr(args, "use_bmuf", False):
-        # hack to support extra args for block distributed data parallelism
-        from fairseq.optim.bmuf import FairseqBMUF
-
-        FairseqBMUF.add_args(parser)
 
     # Modify the parser a second time, since defaults may have been reset
     if modify_parser is not None:
@@ -249,11 +249,13 @@ def add_preprocess_args(parser):
     group.add_argument("-t", "--target-lang", default=None, metavar="TARGET",
                        help="target language")
     group.add_argument("--trainpref", metavar="FP", default=None,
-                       help="train file prefix")
+                       help="train file prefix (also used to build dictionaries)")
     group.add_argument("--validpref", metavar="FP", default=None,
-                       help="comma separated, valid file prefixes")
+                       help="comma separated, valid file prefixes "
+                            "(words missing from train set are replaced with <unk>)")
     group.add_argument("--testpref", metavar="FP", default=None,
-                       help="comma separated, test file prefixes")
+                       help="comma separated, test file prefixes "
+                            "(words missing from train set are replaced with <unk>)")
     group.add_argument("--align-suffix", metavar="FP", default=None,
                        help="alignment file suffix")
     group.add_argument("--destdir", metavar="DIR", default="data-bin",

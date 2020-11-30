@@ -5,13 +5,39 @@
 # LICENSE file in the root directory of this source tree.
 
 import os
+import subprocess
 import sys
+from setuptools import setup, find_packages, Extension
 
 from setuptools import Extension, find_packages, setup
 
 
 if sys.version_info < (3, 6):
     sys.exit("Sorry, Python >= 3.6 is required for fairseq.")
+
+
+def write_version_py():
+    with open(os.path.join("fairseq", "version.txt")) as f:
+        version = f.read().strip()
+
+    # append latest commit hash to version string
+    try:
+        sha = (
+            subprocess.check_output(["git", "rev-parse", "HEAD"])
+            .decode("ascii")
+            .strip()
+        )
+        version += "+" + sha[:7]
+    except Exception:
+        pass
+
+    # write version info to fairseq/version.py
+    with open(os.path.join("fairseq", "version.py"), "w") as f:
+        f.write('__version__ = "{}"\n'.format(version))
+    return version
+
+
+version = write_version_py()
 
 
 with open("README.md") as f:
@@ -110,7 +136,7 @@ if "READTHEDOCS" in os.environ:
 
     # use CPU build of PyTorch
     dependency_links = [
-        "https://download.pytorch.org/whl/cpu/torch-1.3.0%2Bcpu-cp36-cp36m-linux_x86_64.whl"
+        "https://download.pytorch.org/whl/cpu/torch-1.7.0%2Bcpu-cp36-cp36m-linux_x86_64.whl"
     ]
 else:
     dependency_links = []
@@ -127,10 +153,15 @@ if "clean" in sys.argv[1:]:
     )
 
 
+extra_packages = []
+if os.path.exists(os.path.join("fairseq", "model_parallel", "megatron", "mpu")):
+    extra_packages.append("fairseq.model_parallel.megatron.mpu")
+
+
 def do_setup(package_data):
     setup(
         name="fairseq",
-        version="0.9.0",
+        version=version,
         description="Facebook AI Research Sequence-to-Sequence Toolkit",
         url="https://github.com/pytorch/fairseq",
         classifiers=[
@@ -150,7 +181,6 @@ def do_setup(package_data):
             "cffi",
             "cython",
             "dataclasses",
-            "editdistance",
             "hydra-core",
             "numpy",
             "regex",
@@ -168,7 +198,8 @@ def do_setup(package_data):
                 "tests",
                 "tests.*",
             ]
-        ),
+        )
+        + extra_packages,
         package_data=package_data,
         ext_modules=extensions,
         test_suite="tests",
@@ -176,6 +207,7 @@ def do_setup(package_data):
             "console_scripts": [
                 "fairseq-eval-lm = fairseq_cli.eval_lm:cli_main",
                 "fairseq-generate = fairseq_cli.generate:cli_main",
+                "fairseq-hydra-train = fairseq_cli.hydra_train:cli_main",
                 "fairseq-interactive = fairseq_cli.interactive:cli_main",
                 "fairseq-preprocess = fairseq_cli.preprocess:cli_main",
                 "fairseq-score = fairseq_cli.score:cli_main",
@@ -200,15 +232,17 @@ def get_files(path, relative_to="fairseq"):
 
 
 try:
-    # symlink config and examples into fairseq package so package_data accepts them
-    if "build_ext" not in sys.argv[1:]:
-        os.symlink(os.path.join("..", "config"), "fairseq/config")
-        os.symlink(os.path.join("..", "examples"), "fairseq/examples")
+    # symlink examples into fairseq package so package_data accepts them
+    fairseq_examples = os.path.join("fairseq", "examples")
+    if "build_ext" not in sys.argv[1:] and not os.path.exists(fairseq_examples):
+        os.symlink(os.path.join("..", "examples"), fairseq_examples)
+
     package_data = {
-        "fairseq": get_files("fairseq/config") + get_files("fairseq/examples"),
+        "fairseq": (
+            get_files(fairseq_examples) + get_files(os.path.join("fairseq", "config"))
+        )
     }
     do_setup(package_data)
 finally:
-    if "build_ext" not in sys.argv[1:]:
-        os.unlink("fairseq/config")
-        os.unlink("fairseq/examples")
+    if "build_ext" not in sys.argv[1:] and os.path.exists(fairseq_examples):
+        os.unlink(fairseq_examples)

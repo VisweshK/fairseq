@@ -6,8 +6,7 @@
 from argparse import Namespace
 
 from fairseq.dataclass.utils import gen_parser_from_dataclass
-
-from .. import FairseqOptimizer
+from fairseq.optim import FairseqOptimizer
 
 
 class FairseqLRScheduler(object):
@@ -33,6 +32,10 @@ class FairseqLRScheduler(object):
     def load_state_dict(self, state_dict):
         """Load an LR scheduler state dict."""
         self.best = state_dict["best"]
+
+    def step_begin_epoch(self, epoch):
+        """Update the learning rate at the beginning of the given epoch."""
+        pass
 
     def step(self, epoch, val_loss=None):
         """Update the learning rate at the end of the given epoch."""

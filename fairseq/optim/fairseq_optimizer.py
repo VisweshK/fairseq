@@ -94,6 +94,11 @@ class FairseqOptimizer(object):
         """Computes the sum of gradients of the given tensor w.r.t. graph leaves."""
         loss.backward()
 
+    def all_reduce_grads(self, module):
+        """Manually all-reduce gradients (if required)."""
+        if hasattr(module, "all_reduce_grads"):
+            module.all_reduce_grads()
+
     def multiply_grads(self, c):
         """Multiplies grads by a constant *c*."""
         for p in self.params:
@@ -143,6 +148,16 @@ class FairseqOptimizer(object):
 
     def average_params(self):
         pass
+
+    def broadcast_global_state_dict(self, state_dict):
+        """
+        Broadcasts a global state dict to all ranks.
+        Useful for optimizers that shard state between ranks.
+        """
+        if hasattr(self.optimizer, "broadcast_global_state_dict"):
+            return self.optimizer.broadcast_global_state_dict(state_dict)
+        else:
+            return state_dict
 
 
 class LegacyFairseqOptimizer(FairseqOptimizer):
