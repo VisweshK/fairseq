@@ -23,7 +23,7 @@ class FunnelEncoderLayer(nn.Module):
         # Funnel Args
         self.stride = stride
         self.embed_dim = embed_dim
-        self.ffn_embed_dim = self.embed_dim * args.ffn_embed_factor
+        self.ffn_embed_dim = self.embed_dim * args.encoder_ffn_embed_factor
         self.block_id = block_id
         self.block_num = block_num
         self.should_compress_query = should_compress_query
