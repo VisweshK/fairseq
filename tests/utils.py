@@ -345,20 +345,18 @@ def train_translation_model(
         validate.main(validate_args)
 
 
-def generate_main(data_dir, extra_flags=None, path=None):
+def generate_main(data_dir, extra_flags=None):
     if extra_flags is None:
         extra_flags = [
             "--print-alignment",
         ]
-    if path is None:
-        path = os.path.join(data_dir, "checkpoint_last.pt")
     generate_parser = options.get_generation_parser()
     generate_args = options.parse_args_and_arch(
         generate_parser,
         [
             data_dir,
             "--path",
-            path,
+            os.path.join(data_dir, "checkpoint_last.pt"),
             "--beam",
             "3",
             "--batch-size",

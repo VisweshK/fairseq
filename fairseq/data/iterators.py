@@ -60,11 +60,7 @@ class CountingIterator(object):
             if self.n >= self.total:
                 raise RuntimeError(
                     "Mismatch between actual and expected iterable length. "
-                    "This may be caused by resuming training from a checkpoint using "
-                    "a different number of GPUs, in which case you can try the "
-                    "--reset-dataloader option. Alternatively you may have a train or "
-                    "validation set that is smaller than the number of GPUs. If none "
-                    "of these apply, please report this to the fairseq developers."
+                    "Please report this to the fairseq developers."
                 )
             self.n += 1
             yield x
@@ -164,8 +160,7 @@ class StreamingEpochBatchIterator(EpochBatchIterating):
 
     def next_epoch_itr(self, shuffle=True, fix_batches_to_gpus=False):
         self.epoch = self.next_epoch_idx
-        if hasattr(self.dataset, "set_epoch"):
-            self.dataset.set_epoch(self.epoch)
+        self.dataset.set_epoch(self.epoch)
         self._current_epoch_iterator = CountingIterator(
             iterable=ShardedIterator(
                 iterable=self.dataset,
@@ -226,9 +221,7 @@ class EpochBatchIterator(EpochBatchIterating):
             queue. Helps speeding up dataloading. When buffer_size is zero, the
             default torch.utils.data.DataLoader preloading is used.
         timeout (int, optional): if positive, the timeout value for collecting a batch
-            from workers. Should always be non-negative (default: ``0``).
-        disable_shuffling (bool, optional): force disable shuffling
-            (default: ``False``).
+            from workers. Should always be non-negative. (default: ``0``)
     """
 
     def __init__(
@@ -243,7 +236,6 @@ class EpochBatchIterator(EpochBatchIterating):
         epoch=1,
         buffer_size=0,
         timeout=0,
-        disable_shuffling=False,
     ):
         assert isinstance(dataset, torch.utils.data.Dataset)
         self.dataset = dataset
@@ -260,10 +252,9 @@ class EpochBatchIterator(EpochBatchIterating):
         # in a shared computing environment.
         self.buffer_size = min(buffer_size, 20)
         self.timeout = timeout
-        self.disable_shuffling = disable_shuffling
 
         self.epoch = max(epoch, 1)  # we use 1-based indexing for epochs
-        self.shuffle = not disable_shuffling
+        self.shuffle = True
         self._cur_epoch_itr = None
         self._next_epoch_itr = None
         self._supports_prefetch = getattr(dataset, "supports_prefetch", False)
@@ -284,7 +275,7 @@ class EpochBatchIterator(EpochBatchIterating):
                 "a larger dataset."
             )
 
-        if getattr(self.dataset, "supports_fetch_outside_dataloader", True):
+        if self.dataset.supports_fetch_outside_dataloader:
             return self.collate_fn([self.dataset[i] for i in self.frozen_batches[0]])
         else:
             return "DUMMY"
@@ -316,11 +307,8 @@ class EpochBatchIterator(EpochBatchIterating):
                 allocated to the same shards across epochs. Requires
                 that :attr:`dataset` supports prefetching (default: False).
         """
-        if self.disable_shuffling:
-            shuffle = False
         self.epoch = self.next_epoch_idx
-        if hasattr(self.dataset, "set_epoch"):
-            self.dataset.set_epoch(self.epoch)
+        self.dataset.set_epoch(self.epoch)
         if self._next_epoch_itr is not None:
             self._cur_epoch_itr = self._next_epoch_itr
             self._next_epoch_itr = None

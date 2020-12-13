@@ -11,6 +11,7 @@ import torch.nn as nn
 from fairseq import search, utils
 from fairseq.data import data_utils
 from fairseq.models import FairseqIncrementalDecoder
+from fairseq.models.fairseq_encoder import EncoderOut
 from torch import Tensor
 
 
@@ -297,6 +298,7 @@ class SequenceGenerator(nn.Module):
 
         for step in range(max_len + 1):  # one extra step for EOS marker
             # reorder decoder internal states based on the prev choice of beams
+            # print(f'step: {step}')
             if reorder_state is not None:
                 if batch_idxs is not None:
                     # update beam indices to take into account removed sentences
@@ -427,7 +429,7 @@ class SequenceGenerator(nn.Module):
                 break
             if self.search.stop_on_max_len and step >= max_len:
                 break
-            assert step < max_len, f"{step} < {max_len}"
+            assert step < max_len
 
             # Remove finalized sentences (ones for which {beam_size}
             # finished hypotheses have been generated) from the batch.
@@ -651,11 +653,12 @@ class SequenceGenerator(nn.Module):
             else:
                 cum_unfin.append(prev)
 
+        # set() is not supported in script export
+
         # The keys here are of the form "{sent}_{unfin_idx}", where
         # "unfin_idx" is the index in the current (possibly reduced)
         # list of sentences, and "sent" is the index in the original,
         # unreduced batch
-        # set() is not supported in script export
         sents_seen: Dict[str, Optional[Tensor]] = {}
 
         # For every finished beam item
@@ -666,6 +669,7 @@ class SequenceGenerator(nn.Module):
             unfin_idx = idx // beam_size
             # sentence index in the original (unreduced) batch
             sent = unfin_idx + cum_unfin[unfin_idx]
+            # print(f"{step} FINISHED {idx} {score} {sent}={unfin_idx} {cum_unfin}")
             # Cannot create dict for key type '(int, int)' in torchscript.
             # The workaround is to cast int to string
             seen = str(sent.item()) + "_" + str(unfin_idx.item())
@@ -824,13 +828,13 @@ class EnsembleModel(nn.Module):
     def forward_decoder(
         self,
         tokens,
-        encoder_outs: List[Dict[str, List[Tensor]]],
+        encoder_outs: List[EncoderOut],
         incremental_states: List[Dict[str, Dict[str, Optional[Tensor]]]],
         temperature: float = 1.0,
     ):
         log_probs = []
         avg_attn: Optional[Tensor] = None
-        encoder_out: Optional[Dict[str, List[Tensor]]] = None
+        encoder_out: Optional[EncoderOut] = None
         for i, model in enumerate(self.models):
             if self.has_encoder():
                 encoder_out = encoder_outs[i]
@@ -887,7 +891,7 @@ class EnsembleModel(nn.Module):
         return avg_probs, avg_attn
 
     @torch.jit.export
-    def reorder_encoder_out(self, encoder_outs: Optional[List[Dict[str, List[Tensor]]]], new_order):
+    def reorder_encoder_out(self, encoder_outs: Optional[List[EncoderOut]], new_order):
         """
         Reorder encoder output according to *new_order*.
 
@@ -898,7 +902,7 @@ class EnsembleModel(nn.Module):
         Returns:
             *encoder_out* rearranged according to *new_order*
         """
-        new_outs: List[Dict[str, List[Tensor]]] = []
+        new_outs: List[EncoderOut] = []
         if not self.has_encoder():
             return new_outs
         for i, model in enumerate(self.models):

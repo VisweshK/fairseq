@@ -6,7 +6,6 @@
 BART: Denoising Sequence-to-Sequence Pre-training for
 Natural Language Generation, Translation, and Comprehension
 """
-from typing import Optional
 
 import logging
 
@@ -25,8 +24,6 @@ logger = logging.getLogger(__name__)
 
 @register_model("bart")
 class BARTModel(TransformerModel):
-    __jit_unused_properties__ = ["supported_targets"]
-
     @classmethod
     def hub_models(cls):
         return {
@@ -44,8 +41,6 @@ class BARTModel(TransformerModel):
         self.apply(init_bert_params)
 
         self.classification_heads = nn.ModuleDict()
-        if hasattr(self.encoder, "dictionary"):
-            self.eos: int = self.encoder.dictionary.eos()
 
     @staticmethod
     def add_args(parser):
@@ -76,12 +71,10 @@ class BARTModel(TransformerModel):
         src_tokens,
         src_lengths,
         prev_output_tokens,
-        features_only: bool = False,
-        classification_head_name: Optional[str] = None,
-        token_embeddings: Optional[torch.Tensor] = None,
-        return_all_hiddens: bool = True,
-        alignment_layer: Optional[int] = None,
-        alignment_heads: Optional[int] = None,
+        features_only=False,
+        classification_head_name=None,
+        token_embeddings=None,
+        **kwargs,
     ):
         if classification_head_name is not None:
             features_only = True
@@ -90,27 +83,22 @@ class BARTModel(TransformerModel):
             src_tokens,
             src_lengths=src_lengths,
             token_embeddings=token_embeddings,
-            return_all_hiddens=return_all_hiddens
+            **kwargs,
         )
         x, extra = self.decoder(
             prev_output_tokens,
             encoder_out=encoder_out,
             features_only=features_only,
-            alignment_layer=alignment_layer,
-            alignment_heads=alignment_heads,
-            src_lengths=src_lengths,
-            return_all_hiddens=return_all_hiddens,
+            **kwargs,
         )
-        eos: int = self.eos
+
         if classification_head_name is not None:
             sentence_representation = x[
-                src_tokens.eq(eos), :
+                src_tokens.eq(self.encoder.dictionary.eos()), :
             ].view(x.size(0), -1, x.size(-1))[:, -1, :]
-            for k, head in self.classification_heads.items():
-                # for torch script only supports iteration
-                if k == classification_head_name:
-                    x = head(sentence_representation)
-                    break
+            x = self.classification_heads[classification_head_name](
+                sentence_representation
+            )
         return x, extra
 
     @classmethod
@@ -120,7 +108,6 @@ class BARTModel(TransformerModel):
         checkpoint_file="model.pt",
         data_name_or_path=".",
         bpe="gpt2",
-        sample_break_mode="eos",
         **kwargs,
     ):
         from fairseq import hub_utils
@@ -132,7 +119,6 @@ class BARTModel(TransformerModel):
             archive_map=cls.hub_models(),
             bpe=bpe,
             load_checkpoint_heads=True,
-            sample_break_mode=sample_break_mode,
             **kwargs,
         )
         return BARTHubInterface(x["args"], x["task"], x["models"][0])

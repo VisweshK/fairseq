@@ -17,6 +17,20 @@ from fairseq.models import (
 )
 
 
+try:
+    # Prepend the transformers submodule to the path, so that
+    # it's prioritized over other installations. This allows
+    # making local changes in the submodule.
+    hf_path = os.path.join(os.path.dirname(__file__), "transformers", "src")
+    sys.path.insert(0, hf_path)
+    from transformers import GPT2Config, GPT2LMHeadModel
+
+    sys.path.remove(hf_path)
+    has_hf = True
+except ImportError:
+    has_hf = False
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,6 +41,14 @@ DEFAULT_MAX_TARGET_POSITIONS = 1024
 class HuggingFaceGPT2LanguageModel(FairseqLanguageModel):
     def __init__(self, decoder):
         super().__init__(decoder)
+        if not has_hf:
+            raise ImportError(
+                "\n\nPlease install huggingface/transformers with:"
+                "\n\n  pip install transformers"
+                "\n\nOr to make local edits, install the submodule:"
+                "\n\n  git submodule update --init "
+                "fairseq/models/huggingface/transformers"
+            )
 
     @staticmethod
     def add_args(parser):
@@ -54,15 +76,16 @@ class HuggingFaceGPT2LanguageModel(FairseqLanguageModel):
 
 class HuggingFaceGPT2Decoder(FairseqIncrementalDecoder):
     def __init__(self, args, task):
-        try:
-            from transformers import GPT2Config, GPT2LMHeadModel
-        except ImportError:
+        super().__init__(task.target_dictionary)
+
+        if not has_hf:
             raise ImportError(
                 "\n\nPlease install huggingface/transformers with:"
                 "\n\n  pip install transformers"
+                "\n\nOr to make local edits, install the submodule:"
+                "\n\n  git submodule update --init "
+                "fairseq/models/huggingface/transformers"
             )
-
-        super().__init__(task.target_dictionary)
 
         config = GPT2Config(
             vocab_size=len(task.target_dictionary),

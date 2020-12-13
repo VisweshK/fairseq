@@ -4,17 +4,10 @@
 # LICENSE file in the root directory of this source tree.
 """isort:skip_file"""
 
-import os
-import sys
-
-try:
-    from .version import __version__  # noqa
-except ImportError:
-    version_txt = os.path.join(os.path.dirname(__file__), "version.txt")
-    with open(version_txt) as f:
-        __version__ = f.read().strip()
-
 __all__ = ["pdb"]
+__version__ = "1.0.0a0"
+
+import sys
 
 # backwards compatibility to support `from fairseq.meters import AverageMeter`
 from fairseq.logging import meters, metrics, progress_bar  # noqa
@@ -22,10 +15,6 @@ from fairseq.logging import meters, metrics, progress_bar  # noqa
 sys.modules["fairseq.meters"] = meters
 sys.modules["fairseq.metrics"] = metrics
 sys.modules["fairseq.progress_bar"] = progress_bar
-
-# initialize hydra
-from fairseq.dataclass.initialize import hydra_init
-hydra_init()
 
 import fairseq.criterions  # noqa
 import fairseq.models  # noqa

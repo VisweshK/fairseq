@@ -69,7 +69,6 @@ class Dictionary(object):
         escape_unk=False,
         extra_symbols_to_ignore=None,
         unk_string=None,
-        include_eos=False,
     ):
         """Helper for converting a tensor of token indices to a string.
 
@@ -77,7 +76,7 @@ class Dictionary(object):
         """
         if torch.is_tensor(tensor) and tensor.dim() == 2:
             return "\n".join(
-                self.string(t, bpe_symbol, escape_unk, extra_symbols_to_ignore, include_eos=include_eos)
+                self.string(t, bpe_symbol, escape_unk, extra_symbols_to_ignore)
                 for t in tensor
             )
 

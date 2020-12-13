@@ -73,10 +73,7 @@ class GumbelVectorQuantizer(nn.Module):
             nn.init.normal_(self.weight_proj.weight, mean=0, std=1)
             nn.init.zeros_(self.weight_proj.bias)
 
-        if isinstance(temp, str):
-            import ast
-            temp = ast.literal_eval(temp)
-        assert len(temp) == 3, f"{temp}, {len(temp)}"
+        assert len(temp) == 3, temp
 
         self.max_temp, self.min_temp, self.temp_decay = temp
         self.curr_temp = self.max_temp

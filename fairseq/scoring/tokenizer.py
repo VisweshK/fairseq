@@ -5,7 +5,7 @@
 
 import unicodedata
 
-from fairseq.dataclass import ChoiceEnum
+from fairseq.dataclass.utils import ChoiceEnum
 
 
 class EvaluationTokenizer(object):

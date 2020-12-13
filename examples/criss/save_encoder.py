@@ -133,7 +133,7 @@ def main(args):
                     sample,
                     prefix_tokens,
                     src_dict,
-                    args.post_process,
+                    args.remove_bpe,
                     has_langtok=encoder_has_langtok,
                 )
                 if all_avg_pool is not None:
@@ -158,7 +158,7 @@ def main(args):
                     )
                 else:
                     if src_dict is not None:
-                        src_str = src_dict.string(src_tokens, args.post_process)
+                        src_str = src_dict.string(src_tokens, args.remove_bpe)
                     else:
                         src_str = ""
 

@@ -5,7 +5,6 @@
 
 import argparse
 import copy
-import logging
 import unittest
 
 import torch
@@ -31,9 +30,6 @@ class TestGradientScaling(unittest.TestCase):
 
         self.cfg_dls = OmegaConf.create(
             {
-                "optimization": {
-                    "lr": [0.1],
-                },
                 "optimizer": {
                     "_name": "adam",
                     "lr": [0.1],
@@ -47,14 +43,9 @@ class TestGradientScaling(unittest.TestCase):
                     "fp16_scale_tolerance": 1,
                     "threshold_loss_scale": 1,
                     "min_loss_scale": 1e-4,
-                    "tpu": False,
                 },
             }
         )
-        logging.disable(logging.CRITICAL)
-
-    def tearDown(self):
-        logging.disable(logging.NOTSET)
 
     def run_iter(self, model, params, optimizer):
         optimizer.zero_grad()

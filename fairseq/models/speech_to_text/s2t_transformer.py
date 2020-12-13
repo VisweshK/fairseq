@@ -181,11 +181,6 @@ class S2TTransformerModel(FairseqEncoderDecoderModel):
             help="apply layernorm before each decoder block",
         )
         parser.add_argument(
-            "--share-decoder-input-output-embed",
-            action="store_true",
-            help="share decoder input and output embeddings",
-        )
-        parser.add_argument(
             "--layernorm-embedding",
             action="store_true",
             help="add layernorm to embedding",
@@ -415,7 +410,7 @@ def base_architecture(args):
     args.adaptive_softmax_cutoff = getattr(args, "adaptive_softmax_cutoff", None)
     args.adaptive_softmax_dropout = getattr(args, "adaptive_softmax_dropout", 0)
     args.share_decoder_input_output_embed = getattr(
-        args, "share_decoder_input_output_embed", True
+        args, "share_decoder_input_output_embed", False
     )
     args.no_token_positional_embeddings = getattr(
         args, "no_token_positional_embeddings", False

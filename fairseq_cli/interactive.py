@@ -21,10 +21,13 @@ import numpy as np
 import torch
 from fairseq import checkpoint_utils, distributed_utils, options, tasks, utils
 from fairseq.data import encoders
-from fairseq.dataclass.configs import FairseqConfig
+from fairseq.dataclass.data_class import register_hydra_cfg
 from fairseq.dataclass.utils import convert_namespace_to_omegaconf
 from fairseq.token_generation_constraints import pack_constraints, unpack_constraints
 from fairseq_cli.generate import get_symbols_to_strip_from_output
+from hydra.core.config_store import ConfigStore
+from hydra.experimental import initialize
+from omegaconf import DictConfig
 
 
 logging.basicConfig(
@@ -112,7 +115,7 @@ def make_batches(lines, cfg, task, max_positions, encode_fn):
         )
 
 
-def main(cfg: FairseqConfig):
+def main(cfg: DictConfig):
     if isinstance(cfg, Namespace):
         cfg = convert_namespace_to_omegaconf(cfg)
 
@@ -257,13 +260,13 @@ def main(cfg: FairseqConfig):
         # sort output to match input order
         for id_, src_tokens, hypos, info in sorted(results, key=lambda x: x[0]):
             if src_dict is not None:
-                src_str = src_dict.string(src_tokens, cfg.common_eval.post_process)
+                src_str = src_dict.string(src_tokens, cfg.common_eval.remove_bpe)
                 print("S-{}\t{}".format(id_, src_str))
                 print("W-{}\t{:.3f}\tseconds".format(id_, info["time"]))
                 for constraint in info["constraints"]:
                     print(
                         "C-{}\t{}".format(
-                            id_, tgt_dict.string(constraint, cfg.common_eval.post_process)
+                            id_, tgt_dict.string(constraint, cfg.common_eval.remove_bpe)
                         )
                     )
 
@@ -275,7 +278,7 @@ def main(cfg: FairseqConfig):
                     alignment=hypo["alignment"],
                     align_dict=align_dict,
                     tgt_dict=tgt_dict,
-                    remove_bpe=cfg.common_eval.post_process,
+                    remove_bpe=cfg.common_eval.remove_bpe,
                     extra_symbols_to_ignore=get_symbols_to_strip_from_output(generator),
                 )
                 detok_hypo_str = decode_fn(hypo_str)
@@ -315,8 +318,11 @@ def main(cfg: FairseqConfig):
 def cli_main():
     parser = options.get_interactive_generation_parser()
     args = options.parse_args_and_arch(parser)
-    distributed_utils.call_main(convert_namespace_to_omegaconf(args), main)
+    distributed_utils.call_main(args, main)
 
 
 if __name__ == "__main__":
+    cs = ConfigStore.instance()
+    register_hydra_cfg(cs)
+    initialize(config_path="../config", strict=True)
     cli_main()

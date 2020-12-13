@@ -286,7 +286,7 @@ def get_from_cache(url, cache_dir=None):
                 etag = None
             else:
                 etag = response.headers.get("ETag")
-        except RuntimeError:
+        except EnvironmentError:
             etag = None
 
     filename = url_to_filename(url, etag)

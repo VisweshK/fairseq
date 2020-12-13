@@ -1,9 +1,11 @@
 # Author: Viswesh Krishna
 
-from typing import Optional
+from typing import Dict, List, Optional
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from fairseq import utils
 from fairseq.models.fairseq_encoder import EncoderOut
 from fairseq.models import (
     register_model,
@@ -11,8 +13,7 @@ from fairseq.models import (
 )
 from .transformer import (
     TransformerEncoder,
-    DEFAULT_MAX_SOURCE_POSITIONS,
-    DEFAULT_MAX_TARGET_POSITIONS,
+    TransformerDecoder,
     TransformerModel,
 )
 from fairseq.modules import (
@@ -40,9 +41,9 @@ class FunnelTransformer(TransformerModel):
                             help="should compress along feature dimension.")
         parser.add_argument('--time-compress', default=False, action='store_true',
                             help="should compress along time dimension.")
-        parser.add_argument('--feature-compress-type', type=str, default="mean",
+        parser.add_argument('--feature-compress-type', type=str, default="mean", 
                             help="type of feature compression to use.")
-        parser.add_argument('--time-compress-type', type=str, default="mean",
+        parser.add_argument('--time-compress-type', type=str, default="mean", 
                             help="type of time compression to use.")
 
     @classmethod
@@ -130,7 +131,7 @@ class FunnelEncoder(TransformerEncoder):
                 scale_factor=self.stride ** (self.num_blocks - 1), mode="nearest")
         if self.should_time_compress:
             self.compress_encoder_padding_mask_fn = nn.MaxPool1d(
-                self.stride, stride=self.stride, ceil_mode=True)
+                    self.stride, stride=self.stride, ceil_mode=True)
         # Recreate Layers with Funnel Encoders
         if self.encoder_layerdrop > 0.0:
             self.layers = LayerDropModuleList(p=self.encoder_layerdrop)
@@ -142,8 +143,7 @@ class FunnelEncoder(TransformerEncoder):
                 self.layers.append(
                     self.build_funnel_encoder_layer(
                         args,
-                        self.embed_dim // (
-                            self.stride ** block_num) if self.should_feature_compress else self.embed_dim,
+                        self.embed_dim // (self.stride ** block_num) if self.should_feature_compress else self.embed_dim,
                         block_num,
                         block_id,
                         self.stride,
@@ -154,7 +154,7 @@ class FunnelEncoder(TransformerEncoder):
 
     def build_funnel_encoder_layer(self, args, embed_dim, block_num, block_id, stride, should_pool_query):
         return FunnelEncoderLayer(args, embed_dim, block_num, block_id, stride, should_pool_query)
-
+    
     def time_compress_encoder_padding_mask(self, mask):
         """Max pool along time axis"""
         mask = torch.unsqueeze(mask, 0).to(dtype=torch.float32)
@@ -168,6 +168,7 @@ class FunnelEncoder(TransformerEncoder):
         if self.should_time_compress:
             x = self.upsample_fn(x.permute(1, 2, 0)).permute(2, 0, 1)[:src_len]
         return x
+        
 
     def forward(
         self,
@@ -206,8 +207,7 @@ class FunnelEncoder(TransformerEncoder):
         x = x.transpose(0, 1)
 
         # compute padding mask
-        orig_encoder_padding_mask = encoder_padding_mask = src_tokens.eq(
-            self.padding_idx)
+        orig_encoder_padding_mask = encoder_padding_mask = src_tokens.eq(self.padding_idx)
         src_len = encoder_padding_mask.size(1)
 
         encoder_states = [] if return_all_hiddens else None
@@ -216,8 +216,7 @@ class FunnelEncoder(TransformerEncoder):
         for layer in self.layers:
             x = layer(x, encoder_padding_mask)
             if layer.block_id == self.encoder_layers - 1 and self.should_time_compress:
-                encoder_padding_mask = self.time_compress_encoder_padding_mask(
-                    encoder_padding_mask)
+                encoder_padding_mask = self.time_compress_encoder_padding_mask(encoder_padding_mask)
             if layer.block_id == self.encoder_layers - 1 and layer.block_num == 0:
                 residual = x
             if return_all_hiddens:

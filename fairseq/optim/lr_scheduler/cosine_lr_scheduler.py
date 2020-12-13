@@ -8,14 +8,14 @@ from collections import Collection
 from dataclasses import dataclass, field
 from typing import List
 
-from omegaconf import II
-
 from fairseq.dataclass import FairseqDataclass
-from fairseq.optim.lr_scheduler import FairseqLRScheduler, register_lr_scheduler
+from omegaconf import II, DictConfig
+
+from . import FairseqLRScheduler, register_lr_scheduler
 
 
 @dataclass
-class CosineLRScheduleConfig(FairseqDataclass):
+class CosineConfig(FairseqDataclass):
     warmup_updates: int = field(
         default=0,
         metadata={"help": "warmup the learning rate linearly for the first N updates"},
@@ -23,11 +23,11 @@ class CosineLRScheduleConfig(FairseqDataclass):
     warmup_init_lr: float = field(
         default=-1,
         metadata={
-            "help": "initial learning rate during warmup phase; default is cfg.lr"
+            "help": "initial learning rate during warmup phase; default is args.lr"
         },
     )
     max_lr: float = field(
-        default=1.0, metadata={"help": "max learning rate, must be more than cfg.lr"}
+        default=1.0, metadata={"help": "max learning rate, must be more than args.lr"}
     )
     t_mult: float = field(
         default=1.0, metadata={"help": "factor to grow the length of each period"}
@@ -38,12 +38,13 @@ class CosineLRScheduleConfig(FairseqDataclass):
     lr_shrink: float = field(
         default=0.1, metadata={"help": "shrink factor for annealing"}
     )
+    # TODO common var for parent class
     lr: List[float] = II("optimization.lr")
     max_update: int = II("optimization.max_update")
 
 
-@register_lr_scheduler("cosine", dataclass=CosineLRScheduleConfig)
-class CosineLRSchedule(FairseqLRScheduler):
+@register_lr_scheduler("cosine", dataclass=CosineConfig)
+class CosineSchedule(FairseqLRScheduler):
     """Assign LR based on a cyclical schedule that follows the cosine function.
 
     See https://arxiv.org/pdf/1608.03983.pdf for details.
@@ -54,7 +55,7 @@ class CosineLRSchedule(FairseqLRScheduler):
 
     During warmup::
 
-      lrs = torch.linspace(cfg.warmup_init_lr, cfg.lr, cfg.warmup_updates)
+      lrs = torch.linspace(args.warmup_init_lr, args.lr, args.warmup_updates)
       lr = lrs[update_num]
 
     After warmup::
@@ -66,23 +67,27 @@ class CosineLRSchedule(FairseqLRScheduler):
     after every iteration.
     """
 
-    def __init__(self, cfg: CosineLRScheduleConfig, fairseq_optimizer):
+    def __init__(
+        self, cfg: DictConfig, fairseq_optimizer
+    ):
         super().__init__(cfg, fairseq_optimizer)
         if isinstance(cfg.lr, Collection) and len(cfg.lr) > 1:
             raise ValueError(
                 "Cannot use a fixed learning rate schedule with cosine."
-                f" Consider --lr-scheduler=fixed instead. ({cfg.lr})"
+                " Consider --lr-scheduler=fixed instead."
             )
 
         warmup_end_lr = cfg.max_lr
-        lr = cfg.lr[0] if isinstance(cfg.lr, Collection) else cfg.lr
+        lr = (
+            cfg.lr[0]
+            if isinstance(cfg.lr, Collection)
+            else cfg.lr
+        )
         if cfg.warmup_init_lr < 0:
             cfg.warmup_init_lr = lr
 
-        # default min_lr=-1 -> cosine anneale to lr=0.0
-        # otherwise pick min_lr from config
-        self.min_lr = cfg.min_lr if cfg.min_lr > 0.0 else 0.0
-        self.max_lr = lr
+        self.min_lr = lr
+        self.max_lr = cfg.max_lr
         assert self.max_lr > self.min_lr, "max_lr must be more than lr"
 
         self.t_mult = cfg.t_mult
@@ -95,8 +100,10 @@ class CosineLRSchedule(FairseqLRScheduler):
             self.period = cfg.max_update - cfg.warmup_updates
 
         if cfg.warmup_updates > 0:
-            # linearly warmup for the first cfg.warmup_updates
-            self.lr_step = (warmup_end_lr - cfg.warmup_init_lr) / cfg.warmup_updates
+            # linearly warmup for the first args.warmup_updates
+            self.lr_step = (
+                warmup_end_lr - cfg.warmup_init_lr
+            ) / cfg.warmup_updates
         else:
             self.lr_step = 1
 

@@ -13,7 +13,6 @@ from collections import OrderedDict
 from typing import Optional, Union
 
 import torch
-from fairseq.dataclass.configs import CheckpointConfig, FairseqConfig
 from fairseq.dataclass.utils import (
     convert_namespace_to_omegaconf,
     overwrite_args_by_name,
@@ -21,12 +20,13 @@ from fairseq.dataclass.utils import (
 from fairseq.file_io import PathManager
 from fairseq.models import FairseqDecoder, FairseqEncoder
 from omegaconf import DictConfig, open_dict
+from torch.serialization import default_restore_location
 
 
 logger = logging.getLogger(__name__)
 
 
-def save_checkpoint(cfg: CheckpointConfig, trainer, epoch_itr, val_loss):
+def save_checkpoint(cfg: DictConfig, trainer, epoch_itr, val_loss):
     from fairseq import meters
 
     # only one worker should attempt to create the required dir
@@ -130,7 +130,7 @@ def save_checkpoint(cfg: CheckpointConfig, trainer, epoch_itr, val_loss):
                 os.remove(old_chk)
 
 
-def load_checkpoint(cfg: CheckpointConfig, trainer, **passthrough_args):
+def load_checkpoint(cfg: DictConfig, trainer, **passthrough_args):
     """
     Load a checkpoint and restore the training iterator.
 
@@ -224,7 +224,9 @@ def load_checkpoint(cfg: CheckpointConfig, trainer, **passthrough_args):
 def load_checkpoint_to_cpu(path, arg_overrides=None):
     """Loads a checkpoint to CPU (with upgrading for backward compatibility)."""
     with open(PathManager.get_local_path(path), "rb") as f:
-        state = torch.load(f, map_location=torch.device("cpu"))
+        state = torch.load(
+            f, map_location=lambda s, l: default_restore_location(s, "cpu")
+        )
 
     if "args" in state and state["args"] is not None and arg_overrides is not None:
         args = state["args"]
@@ -239,7 +241,7 @@ def load_checkpoint_to_cpu(path, arg_overrides=None):
 
 
 def load_model_ensemble(
-    filenames, arg_overrides=None, task=None, strict=True, suffix="", num_shards=1, state=None
+    filenames, arg_overrides=None, task=None, strict=True, suffix="", num_shards=1
 ):
     """Loads an ensemble of models.
 
@@ -259,26 +261,21 @@ def load_model_ensemble(
         strict,
         suffix,
         num_shards,
-        state,
     )
     return ensemble, args
 
 
 def load_model_ensemble_and_task(
-    filenames, arg_overrides=None, task=None, strict=True, suffix="", num_shards=1, state=None
+    filenames, arg_overrides=None, task=None, strict=True, suffix="", num_shards=1
 ):
-    assert state is None or len(filenames) == 1
-
     from fairseq import tasks
 
     assert not (
         strict and num_shards > 1
     ), "Cannot load state dict with strict=True and checkpoint shards > 1"
     ensemble = []
-    cfg = None
     for filename in filenames:
         orig_filename = filename
-        assert num_shards > 0
         for shard_idx in range(num_shards):
             if num_shards == 1:
                 filename = filename.replace(".pt", suffix + ".pt")
@@ -287,8 +284,7 @@ def load_model_ensemble_and_task(
 
             if not PathManager.exists(filename):
                 raise IOError("Model file not found: {}".format(filename))
-            if state is None:
-                state = load_checkpoint_to_cpu(filename, arg_overrides)
+            state = load_checkpoint_to_cpu(filename, arg_overrides)
             if "args" in state and state["args"] is not None:
                 cfg = convert_namespace_to_omegaconf(state["args"])
             elif "cfg" in state and state["cfg"] is not None:
@@ -305,10 +301,6 @@ def load_model_ensemble_and_task(
             model = task.build_model(cfg.model)
 
             model.load_state_dict(state["model"], strict=strict, model_cfg=cfg.model)
-
-            # reset state so it gets loaded for the next model in ensemble
-            state = None
-
         ensemble.append(model)
     return ensemble, cfg, task
 
@@ -347,7 +339,7 @@ def torch_persistent_save(obj, f):
 
 def save_state(
     filename,
-    cfg: FairseqConfig,
+    cfg: DictConfig,
     model_state_dict,
     criterion,
     optimizer,
@@ -391,9 +383,6 @@ def save_state(
         no_save_optimizer_state = cfg.no_save_optimizer_state
     if not no_save_optimizer_state:
         state_dict["last_optimizer_state"] = optimizer.state_dict()
-
-    # keep everything on CPU
-    state_dict = utils.move_to_cpu(state_dict)
 
     with PathManager.open(filename, "wb") as f:
         torch_persistent_save(state_dict, f)
@@ -461,9 +450,6 @@ def _upgrade_state_dict(state):
             state["extra_state"]["train_iterator"]["epoch"] = max(
                 state["extra_state"]["train_iterator"].get("epoch", 1), 1
             )
-
-        if hasattr(state["args"], "remove_bpe"):
-            state["args"].post_process = state["args"].remove_bpe
 
         state["cfg"] = convert_namespace_to_omegaconf(state["args"])
 

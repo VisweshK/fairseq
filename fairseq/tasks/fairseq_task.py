@@ -7,12 +7,10 @@ import logging
 import os
 import warnings
 from argparse import Namespace
-from typing import List
 
 import torch
 from fairseq import metrics, search, tokenizer, utils
 from fairseq.data import Dictionary, FairseqDataset, data_utils, encoders, iterators
-from fairseq.dataclass import FairseqDataclass
 from fairseq.dataclass.utils import gen_parser_from_dataclass
 from omegaconf import DictConfig
 
@@ -42,7 +40,7 @@ class FairseqTask(object):
         """
         return criterion.logging_outputs_can_be_summed()
 
-    def __init__(self, cfg: FairseqDataclass, **kwargs):
+    def __init__(self, cfg: DictConfig, **kwargs):
         self.cfg = cfg
         self.datasets = {}
         self.dataset_to_epoch_iter = {}
@@ -92,20 +90,11 @@ class FairseqTask(object):
     def has_sharded_data(self, split):
         return os.pathsep in getattr(self.cfg, "data", "")
 
-    def load_dataset(
-        self,
-        split: str,
-        combine: bool = False,
-        task_cfg: FairseqDataclass = None,
-        **kwargs
-    ):
+    def load_dataset(self, split, combine=False, **kwargs):
         """Load a given dataset split.
 
         Args:
             split (str): name of the split (e.g., train, valid, test)
-            combine (bool): combines a split segmented into pieces into one dataset
-            task_cfg (FairseqDataclass): optional task configuration stored in the checkpoint that can be used
-                                         to load datasets
         """
         raise NotImplementedError
 
@@ -266,13 +255,13 @@ class FairseqTask(object):
 
         return epoch_iter
 
-    def build_model(self, cfg: FairseqDataclass):
+    def build_model(self, cfg: DictConfig):
         """
         Build the :class:`~fairseq.models.BaseFairseqModel` instance for this
         task.
 
         Args:
-            cfg (FairseqDataclass): configuration object
+            cfg (omegaconf.DictConfig): configuration object
 
         Returns:
             a :class:`~fairseq.models.BaseFairseqModel` instance
@@ -437,11 +426,6 @@ class FairseqTask(object):
         with torch.no_grad():
             loss, sample_size, logging_output = criterion(model, sample)
         return loss, sample_size, logging_output
-
-    def build_dataset_for_inference(
-        self, src_tokens: List[torch.Tensor], src_lengths: List[int], **kwargs
-    ) -> torch.utils.data.Dataset:
-        raise NotImplementedError
 
     def inference_step(
         self, generator, models, sample, prefix_tokens=None, constraints=None

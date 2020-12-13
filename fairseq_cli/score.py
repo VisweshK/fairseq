@@ -58,7 +58,7 @@ def cli_main():
 
         def score(fdsys):
             with open(args.ref) as fdref:
-                print(sacrebleu.corpus_bleu(fdsys, [fdref]).format())
+                print(sacrebleu.corpus_bleu(fdsys, [fdref]))
 
     elif args.sentence_bleu:
 
