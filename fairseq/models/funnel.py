@@ -322,3 +322,23 @@ def funnel_transformer_iwslt_de_en(args):
     args.decoder_attention_heads = getattr(args, "decoder_attention_heads", 4)
     args.decoder_layers = getattr(args, "decoder_layers", 6)
     base_architecture(args)
+
+
+@ register_model_architecture("funnel_transformer", "funnel_transformer_wmt_en_de_big")
+def funnel_transformer_wmt_en_de_big(args):
+    args.encoder_embed_dim = getattr(args, "encoder_embed_dim", 1024)
+    args.encoder_ffn_embed_dim = getattr(args, "encoder_ffn_embed_dim", 4096)
+    args.encoder_ffn_embed_factor = getattr(
+        args, "encoder_ffn_embed_factor", 4)
+    args.encoder_attention_heads = getattr(args, "encoder_attention_heads", 16)
+    args.encoder_layers = getattr(args, "encoder_layers", 16)
+    args.num_blocks = getattr(args, "num_blocks", 3)
+    args.upsample = getattr(args, "upsample", True)
+    args.feature_compress = getattr(args, "feature_compress", True)
+    args.time_compress = getattr(args, "time_compress", True)
+    args.decoder_embed_dim = getattr(args, "decoder_embed_dim", 1024)
+    args.decoder_ffn_embed_dim = getattr(args, "decoder_ffn_embed_dim", 4096)
+    args.decoder_attention_heads = getattr(args, "decoder_attention_heads", 16)
+    args.decoder_layers = getattr(args, "decoder_layers", 6)
+    args.dropout = getattr(args, "dropout", 0.3)
+    base_architecture(args)
