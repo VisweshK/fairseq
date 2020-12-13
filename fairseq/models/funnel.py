@@ -219,7 +219,7 @@ class FunnelEncoder(TransformerEncoder):
         # encoder layers
         for layer in self.layers:
             x = layer(x, encoder_padding_mask,
-                      orig_encoder_padding_mask.size(1) <= 4)
+                      encoder_padding_mask.size(1) <= 4)
             if layer.block_id == self.encoder_layers - 1 and self.should_time_compress and encoder_padding_mask.size(1) > 4:
                 encoder_padding_mask = self.time_compress_encoder_padding_mask(
                     encoder_padding_mask)
